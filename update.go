@@ -19,14 +19,14 @@ package feed
 import (
 	"fmt"
 	"strconv"
-
-	"github.com/ethersphere/swarm/chunk"
 )
 
 // ProtocolVersion defines the current version of the protocol that will be included in each update message
 const ProtocolVersion uint8 = 0
 
 const headerLength = 8
+
+const ChunkSize = 4096
 
 // Header defines a update message header including a protocol version byte
 type Header struct {
@@ -44,7 +44,7 @@ type Update struct {
 const minimumUpdateDataLength = idLength + headerLength + 1
 
 //MaxUpdateDataLength indicates the maximum payload size for a feed update
-const MaxUpdateDataLength = chunk.DefaultSize - signatureLength - idLength - headerLength
+const MaxUpdateDataLength = ChunkSize - signatureLength - idLength - headerLength
 
 // binaryPut serializes the feed update information into the given slice
 func (r *Update) binaryPut(serializedData []byte) error {
@@ -88,7 +88,7 @@ func (r *Update) binaryLength() int {
 // binaryGet populates this instance from the information contained in the passed byte slice
 func (r *Update) binaryGet(serializedData []byte) error {
 	if len(serializedData) < minimumUpdateDataLength {
-		return NewErrorf(ErrNothingToReturn, "chunk less than %d bytes cannot be a feed update chunk", minimumUpdateDataLength)
+		return NewErrorf(ErrNothingToReturn, "data less than %d bytes cannot be a feed update chunk", minimumUpdateDataLength)
 	}
 	dataLength := len(serializedData) - idLength - headerLength
 	// at this point we can be satisfied that we have the correct data length to read

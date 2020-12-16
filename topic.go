@@ -18,16 +18,15 @@ package feed
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-
-	"github.com/ethereum/go-ethereum/common/bitutil"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethersphere/swarm/storage"
 )
 
+const ChunkAddressLength = 32
+
 // TopicLength establishes the max length of a topic string
-const TopicLength = storage.AddressLength
+const TopicLength = ChunkAddressLength
 
 // Topic represents what a feed is about
 type Topic [TopicLength]byte
@@ -55,18 +54,18 @@ func NewTopic(name string, relatedContent []byte) (topic Topic, err error) {
 		nameLength = TopicLength
 		err = ErrTopicTooLong
 	}
-	bitutil.XORBytes(topic[:], topic[:], nameBytes[:nameLength])
+	XORBytes(topic[:], topic[:], nameBytes[:nameLength])
 	return topic, err
 }
 
 // Hex will return the topic encoded as an hex string
 func (t *Topic) Hex() string {
-	return hexutil.Encode(t[:])
+	return hex.EncodeToString(t[:])
 }
 
 // FromHex will parse a hex string into this Topic instance
-func (t *Topic) FromHex(hex string) error {
-	bytes, err := hexutil.Decode(hex)
+func (t *Topic) FromHex(h string) error {
+	bytes, err := hex.DecodeString(h)
 	if err != nil || len(bytes) != len(t) {
 		return NewErrorf(ErrInvalidValue, "Cannot decode topic")
 	}
@@ -82,7 +81,7 @@ func (t *Topic) Name(relatedContent []byte) string {
 		if contentLength > TopicLength {
 			contentLength = TopicLength
 		}
-		bitutil.XORBytes(nameBytes[:], t[:], relatedContent[:contentLength])
+		XORBytes(nameBytes[:], t[:], relatedContent[:contentLength])
 	}
 	z := bytes.IndexByte(nameBytes[:], 0)
 	if z < 0 {

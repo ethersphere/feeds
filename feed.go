@@ -20,8 +20,6 @@ import (
 	"encoding/hex"
 	"hash"
 	"unsafe"
-
-	"github.com/ethersphere/swarm/storage"
 )
 
 // Lengths of hashes and addresses in bytes.
@@ -113,10 +111,10 @@ func (f *Feed) FromValues(values Values) (err error) {
 		name := values.Get("name")
 		relatedContent, _ := hex.DecodeString(values.Get("relatedcontent"))
 		if len(relatedContent) > 0 {
-			if len(relatedContent) < storage.AddressLength {
-				return NewErrorf(ErrInvalidValue, "relatedcontent field must be a hex-encoded byte array exactly %d bytes long", storage.AddressLength)
+			if len(relatedContent) < ChunkAddressLength {
+				return NewErrorf(ErrInvalidValue, "relatedcontent field must be a hex-encoded byte array exactly %d bytes long", ChunkAddressLength)
 			}
-			relatedContent = relatedContent[:storage.AddressLength]
+			relatedContent = relatedContent[:ChunkAddressLength]
 		}
 		f.Topic, err = NewTopic(name, relatedContent)
 		if err != nil {

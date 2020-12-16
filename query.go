@@ -20,8 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethersphere/swarm/storage/feed/lookup"
+	"github.com/ethersphere/feeds/lookup"
 )
 
 // Query is used to specify constraints when performing an update lookup
@@ -41,7 +40,7 @@ func (q *Query) FromValues(values Values) error {
 	level, _ := strconv.ParseUint(values.Get("hint.level"), 10, 32)
 	q.Hint.Level = uint8(level)
 	q.Hint.Time, _ = strconv.ParseUint(values.Get("hint.time"), 10, 64)
-	if q.Feed.User == (common.Address{}) {
+	if q.Feed.User == (Address{}) {
 		return q.Feed.FromValues(values)
 	}
 	return nil
