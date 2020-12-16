@@ -19,26 +19,29 @@ package feed
 import (
 	"crypto/ecdsa"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const signatureLength = 65
+const HashLength = 32
+
+// Hash represents the 32 byte Keccak256 hash of arbitrary data.
+type Hash [HashLength]byte
 
 // Signature is an alias for a static byte array with the size of a signature
 type Signature [signatureLength]byte
 
 // Signer signs feed update payloads
 type Signer interface {
-	Sign(common.Hash) (Signature, error)
-	Address() common.Address
+	Sign(Hash) (Signature, error)
+	Address() Address
 }
 
 // GenericSigner implements the Signer interface
 // It is the vanilla signer that probably should be used in most cases
 type GenericSigner struct {
 	PrivKey *ecdsa.PrivateKey
-	address common.Address
+	address Address
 }
 
 // NewGenericSigner builds a signer that will sign everything with the provided private key
@@ -51,7 +54,7 @@ func NewGenericSigner(privKey *ecdsa.PrivateKey) *GenericSigner {
 
 // Sign signs the supplied data
 // It wraps the ethereum crypto.Sign() method
-func (s *GenericSigner) Sign(data common.Hash) (signature Signature, err error) {
+func (s *GenericSigner) Sign(data Hash) (signature Signature, err error) {
 	signaturebytes, err := crypto.Sign(data.Bytes(), s.PrivKey)
 	if err != nil {
 		return
@@ -61,15 +64,15 @@ func (s *GenericSigner) Sign(data common.Hash) (signature Signature, err error) 
 }
 
 // Address returns the public key of the signer's private key
-func (s *GenericSigner) Address() common.Address {
+func (s *GenericSigner) Address() Address {
 	return s.address
 }
 
 // getUserAddr extracts the address of the feed update signer
-func getUserAddr(digest common.Hash, signature Signature) (common.Address, error) {
+func getUserAddr(digest Hash, signature Signature) (Address, error) {
 	pub, err := crypto.SigToPub(digest.Bytes(), signature[:])
 	if err != nil {
-		return common.Address{}, err
+		return Address{}, err
 	}
 	return crypto.PubkeyToAddress(*pub), nil
 }

@@ -21,14 +21,13 @@ package feed
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sync"
 	"sync/atomic"
 
 	"github.com/ethersphere/swarm/chunk"
-	"github.com/ethersphere/swarm/log"
 	"github.com/ethersphere/swarm/storage"
 	"github.com/ethersphere/swarm/storage/feed/lookup"
+	"golang.org/x/crypto/sha3"
 )
 
 type Handler struct {
@@ -50,7 +49,7 @@ var hashPool sync.Pool
 func init() {
 	hashPool = sync.Pool{
 		New: func() interface{} {
-			return storage.MakeHashFunc(feedsHashAlgorithm)()
+			return sha3.NewLegacyKeccak256()
 		},
 	}
 }
@@ -59,14 +58,6 @@ func init() {
 func NewHandler(params *HandlerParams) *Handler {
 	fh := &Handler{
 		cache: make(map[uint64]*cacheEntry),
-	}
-
-	for i := 0; i < hasherCount; i++ {
-		hashfunc := storage.MakeHashFunc(feedsHashAlgorithm)()
-		if fh.HashSize == 0 {
-			fh.HashSize = hashfunc.Size()
-		}
-		hashPool.Put(hashfunc)
 	}
 
 	return fh
@@ -80,8 +71,8 @@ func (h *Handler) SetStore(store *storage.NetStore) {
 // Validate is a chunk validation method
 // If it looks like a feed update, the chunk address is checked against the userAddr of the update's signature
 // It implements the storage.ChunkValidator interface
-func (h *Handler) Validate(chunk storage.Chunk) bool {
-	if len(chunk.Data()) < minimumSignedUpdateLength {
+func (h *Handler) Validate(data []byte) bool {
+	if len(data) < minimumSignedUpdateLength {
 		return false
 	}
 
@@ -92,7 +83,7 @@ func (h *Handler) Validate(chunk storage.Chunk) bool {
 	// First, deserialize the chunk
 	var r Request
 	if err := r.fromChunk(chunk); err != nil {
-		log.Debug("Invalid feed update chunk", "addr", chunk.Address(), "err", err)
+		//log.Debug("Invalid feed update chunk", "addr", chunk.Address(), "err", err)
 		return false
 	}
 
@@ -100,7 +91,7 @@ func (h *Handler) Validate(chunk storage.Chunk) bool {
 	// If it fails, it means either the signature is not valid, data is corrupted
 	// or someone is trying to update someone else's feed.
 	if err := r.Verify(); err != nil {
-		log.Debug("Invalid feed update signature", "err", err)
+		//log.Debug("Invalid feed update signature", "err", err)
 		return false
 	}
 
@@ -212,7 +203,7 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 		return nil, err
 	}
 
-	log.Info(fmt.Sprintf("Feed lookup finished in %d lookups", readCount))
+	//log.Info(fmt.Sprintf("Feed lookup finished in %d lookups", readCount))
 
 	request, _ := requestPtr.(*Request)
 	if request == nil {
@@ -226,7 +217,7 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 func (h *Handler) updateCache(request *Request) (*cacheEntry, error) {
 
 	updateAddr := request.Addr()
-	log.Trace("feed cache update", "topic", request.Topic.Hex(), "updateaddr", updateAddr, "epoch time", request.Epoch.Time, "epoch level", request.Epoch.Level)
+	//log.Trace("feed cache update", "topic", request.Topic.Hex(), "updateaddr", updateAddr, "epoch time", request.Epoch.Time, "epoch level", request.Epoch.Level)
 
 	entry := h.get(&request.Feed)
 	if entry == nil {

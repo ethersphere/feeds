@@ -18,12 +18,10 @@ package feed
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"hash"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethersphere/swarm/storage"
 	"github.com/ethersphere/swarm/storage/feed/lookup"
 )
 
@@ -31,8 +29,8 @@ import (
 type Request struct {
 	Update     // actual content that will be put on the chunk, less signature
 	Signature  *Signature
-	idAddr     storage.Address // cached chunk address for the update (not serialized, for internal use)
-	binaryData []byte          // cached serialized data (does not get serialized again!, for efficiency/internal use)
+	idAddr     []byte // cached chunk address for the update (not serialized, for internal use)
+	binaryData []byte // cached serialized data (does not get serialized again!, for efficiency/internal use)
 }
 
 // updateRequestJSON represents a JSON-serialized UpdateRequest
@@ -135,7 +133,7 @@ func (r *Request) Sign(signer Signer) error {
 
 // GetDigest creates the feed update digest used in signatures
 // the serialized payload is cached in .binaryData
-func (r *Request) GetDigest() (result common.Hash, err error) {
+func (r *Request) GetDigest() (result Hash, err error) {
 	hasher := hashPool.Get().(hash.Hash)
 	defer hashPool.Put(hasher)
 	hasher.Reset()
@@ -147,34 +145,33 @@ func (r *Request) GetDigest() (result common.Hash, err error) {
 		}
 	}
 	hasher.Write(r.binaryData[:dataLength]) //everything except the signature.
-
-	return common.BytesToHash(hasher.Sum(nil)), nil
+	sum := hasher.Sum(nil)
+	copy(result, sum[:HashLength])
+	return result, nil
 }
 
 // create an update chunk.
-func (r *Request) toChunk() (storage.Chunk, error) {
+func (r *Request) toChunk() (addr, data []byte, err error) {
 
 	// Check that the update is signed and serialized
 	// For efficiency, data is serialized during signature and cached in
 	// the binaryData field when computing the signature digest in .getDigest()
 	if r.Signature == nil || r.binaryData == nil {
-		return nil, NewError(ErrInvalidSignature, "toChunk called without a valid signature or payload data. Call .Sign() first.")
+		return nil, nil, NewError(ErrInvalidSignature, "toChunk called without a valid signature or payload data. Call .Sign() first.")
 	}
 
 	updateLength := r.Update.binaryLength()
 
 	// signature is the last item in the chunk data
 	copy(r.binaryData[updateLength:], r.Signature[:])
-
-	chunk := storage.NewChunk(r.idAddr, r.binaryData)
-	return chunk, nil
+	return r.idAddr, r.binaryData, nil
 }
 
 // fromChunk populates this structure from chunk data. It does not verify the signature is valid.
-func (r *Request) fromChunk(chunk storage.Chunk) error {
+func (r *Request) fromChunk(addr []byte, data []byte) error {
 	// for update chunk layout see Request definition
 
-	chunkdata := chunk.Data()
+	chunkdata := data
 
 	//deserialize the feed update portion
 	if err := r.Update.binaryGet(chunkdata[:len(chunkdata)-signatureLength]); err != nil {
@@ -191,7 +188,7 @@ func (r *Request) fromChunk(chunk storage.Chunk) error {
 	}
 
 	r.Signature = signature
-	r.idAddr = chunk.Address()
+	r.idAddr = addr
 	r.binaryData = chunkdata
 
 	return nil
@@ -201,7 +198,7 @@ func (r *Request) fromChunk(chunk storage.Chunk) error {
 // FromValues deserializes this instance from a string key-value store
 // useful to parse query strings
 func (r *Request) FromValues(values Values, data []byte) error {
-	signatureBytes, err := hexutil.Decode(values.Get("signature"))
+	signatureBytes, err := hex.DecodeString(values.Get("signature"))
 	if err != nil {
 		r.Signature = nil
 	} else {
@@ -223,7 +220,7 @@ func (r *Request) FromValues(values Values, data []byte) error {
 // useful to build query strings
 func (r *Request) AppendValues(values Values) []byte {
 	if r.Signature != nil {
-		values.Set("signature", hexutil.Encode(r.Signature[:]))
+		values.Set("signature", hex.EncodeToString(r.Signature[:]))
 	}
 	return r.Update.AppendValues(values)
 }
@@ -236,14 +233,14 @@ func (r *Request) fromJSON(j *updateRequestJSON) error {
 
 	var err error
 	if j.Data != "" {
-		r.data, err = hexutil.Decode(j.Data)
+		r.data, err = hex.DecodeString(j.Data)
 		if err != nil {
 			return NewError(ErrInvalidValue, "Cannot decode data")
 		}
 	}
 
 	if j.Signature != "" {
-		sigBytes, err := hexutil.Decode(j.Signature)
+		sigBytes, err := hex.DecodeString(j.Signature)
 		if err != nil || len(sigBytes) != signatureLength {
 			return NewError(ErrInvalidSignature, "Cannot decode signature")
 		}
@@ -269,10 +266,10 @@ func (r *Request) UnmarshalJSON(rawData []byte) error {
 func (r *Request) MarshalJSON() (rawData []byte, err error) {
 	var signatureString, dataString string
 	if r.Signature != nil {
-		signatureString = hexutil.Encode(r.Signature[:])
+		signatureString = hex.EncodeToString(r.Signature[:])
 	}
 	if r.data != nil {
-		dataString = hexutil.Encode(r.data)
+		dataString = hex.EncodeToString(r.data)
 	}
 
 	requestJSON := &updateRequestJSON{
