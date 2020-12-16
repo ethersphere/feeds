@@ -17,11 +17,10 @@
 package feed
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"reflect"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // KV mocks a key value store
@@ -35,8 +34,8 @@ func (kv KV) Set(key, value string) {
 }
 
 func compareByteSliceToExpectedHex(t *testing.T, variableName string, actualValue []byte, expectedHex string) {
-	if hexutil.Encode(actualValue) != expectedHex {
-		t.Fatalf("%s: Expected %s to be %s, got %s", t.Name(), variableName, expectedHex, hexutil.Encode(actualValue))
+	if hex.EncodeToString(actualValue) != expectedHex {
+		t.Fatalf("%s: Expected %s to be %s, got %s", t.Name(), variableName, expectedHex, hex.EncodeToString(actualValue))
 	}
 }
 

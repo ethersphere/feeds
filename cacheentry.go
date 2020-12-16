@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	hasherCount            = 8
+	//hasherCount            = 8
 	feedsHashAlgorithm     = "SHA3"
 	defaultRetrieveTimeout = 1000 * time.Millisecond
 )

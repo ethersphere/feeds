@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethersphere/swarm/storage"
 	"github.com/ethersphere/swarm/storage/feed/lookup"
 )
 
@@ -194,10 +193,11 @@ func getTestRequest() *Request {
 }
 
 func TestUpdateChunkSerializationErrorChecking(t *testing.T) {
+	zeroHash := make([]byte, 32)
 
 	// Test that parseUpdate fails if the chunk is too small
 	var r Request
-	if err := r.fromChunk(storage.NewChunk(storage.ZeroAddr, make([]byte, minimumUpdateDataLength-1+signatureLength))); err == nil {
+	if err := r.fromChunk(zeroHash, make([]byte, minimumUpdateDataLength-1+signatureLength)); err == nil {
 		t.Fatalf("Expected request.fromChunk to fail when chunkData contains less than %d bytes", minimumUpdateDataLength)
 	}
 
