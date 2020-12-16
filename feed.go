@@ -17,24 +17,34 @@
 package feed
 
 import (
+	"encoding/hex"
 	"hash"
 	"unsafe"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethersphere/swarm/storage"
 )
 
+// Lengths of hashes and addresses in bytes.
+const (
+	// HashLength is the expected length of the hash
+	HashLength = 32
+	// AddressLength is the expected length of the address
+	AddressLength = 20
+)
+
+// Address represents the 20 byte address of an Ethereum account.
+type Address [AddressLength]byte
+
 // Feed represents a particular user's stream of updates on a topic
 type Feed struct {
-	Topic Topic          `json:"topic"`
-	User  common.Address `json:"user"`
+	Topic Topic   `json:"topic"`
+	User  Address `json:"user"`
 }
 
 // Feed layout:
 // TopicLength bytes
 // userAddr common.AddressLength bytes
-const feedLength = TopicLength + common.AddressLength
+const feedLength = TopicLength + AddressLength
 
 // mapKey calculates a unique id for this feed. Used by the cache map in `Handler`
 func (f *Feed) mapKey() uint64 {
@@ -57,8 +67,8 @@ func (f *Feed) binaryPut(serializedData []byte) error {
 	copy(serializedData[cursor:cursor+TopicLength], f.Topic[:TopicLength])
 	cursor += TopicLength
 
-	copy(serializedData[cursor:cursor+common.AddressLength], f.User[:])
-	cursor += common.AddressLength
+	copy(serializedData[cursor:cursor+AddressLength], f.User[:])
+	cursor += AddressLength
 
 	return nil
 }
@@ -78,8 +88,8 @@ func (f *Feed) binaryGet(serializedData []byte) error {
 	copy(f.Topic[:], serializedData[cursor:cursor+TopicLength])
 	cursor += TopicLength
 
-	copy(f.User[:], serializedData[cursor:cursor+common.AddressLength])
-	cursor += common.AddressLength
+	copy(f.User[:], serializedData[cursor:cursor+AddressLength])
+	cursor += AddressLength
 
 	return nil
 }
@@ -88,7 +98,7 @@ func (f *Feed) binaryGet(serializedData []byte) error {
 func (f *Feed) Hex() string {
 	serializedData := make([]byte, feedLength)
 	f.binaryPut(serializedData)
-	return hexutil.Encode(serializedData)
+	return hex.EncodeToString(serializedData)
 }
 
 // FromValues deserializes this instance from a string key-value store
@@ -101,7 +111,7 @@ func (f *Feed) FromValues(values Values) (err error) {
 		}
 	} else { // see if the user set name and relatedcontent
 		name := values.Get("name")
-		relatedContent, _ := hexutil.Decode(values.Get("relatedcontent"))
+		relatedContent, _ := hex.DecodeString(values.Get("relatedcontent"))
 		if len(relatedContent) > 0 {
 			if len(relatedContent) < storage.AddressLength {
 				return NewErrorf(ErrInvalidValue, "relatedcontent field must be a hex-encoded byte array exactly %d bytes long", storage.AddressLength)
@@ -113,7 +123,11 @@ func (f *Feed) FromValues(values Values) (err error) {
 			return err
 		}
 	}
-	f.User = common.HexToAddress(values.Get("user"))
+	addr, err := hex.DecodeString(values.Get("user"))
+	if err != nil {
+		return err
+	}
+	f.User = Address{addr[:AddressLength]}
 	return nil
 }
 

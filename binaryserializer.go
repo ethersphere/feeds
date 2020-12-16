@@ -16,8 +16,6 @@
 
 package feed
 
-import "github.com/ethereum/go-ethereum/common/hexutil"
-
 type binarySerializer interface {
 	binaryPut(serializedData []byte) error
 	binaryLength() int
@@ -40,5 +38,5 @@ type valueSerializer interface {
 func Hex(bin binarySerializer) string {
 	b := make([]byte, bin.binaryLength())
 	bin.binaryPut(b)
-	return hexutil.Encode(b)
+	return hex.EncodeString(b)
 }
