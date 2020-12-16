@@ -21,10 +21,7 @@ import (
 	"hash"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethersphere/swarm/storage/feed/lookup"
-
-	"github.com/ethersphere/swarm/storage"
 )
 
 // ID uniquely identifies an update on the network.
@@ -39,7 +36,7 @@ type ID struct {
 const idLength = feedLength + lookup.EpochLength
 
 // Addr calculates the feed update chunk address corresponding to this ID
-func (u *ID) Addr() (updateAddr storage.Address) {
+func (u *ID) Addr() []byte {
 	serializedData := make([]byte, idLength)
 	var cursor int
 	u.Feed.binaryPut(serializedData[cursor : cursor+feedLength])
@@ -108,7 +105,7 @@ func (u *ID) FromValues(values Values) error {
 	u.Epoch.Level = uint8(level)
 	u.Epoch.Time, _ = strconv.ParseUint(values.Get("time"), 10, 64)
 
-	if u.Feed.User == (common.Address{}) {
+	if u.Feed.User == (Address{}) {
 		return u.Feed.FromValues(values)
 	}
 	return nil

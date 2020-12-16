@@ -46,9 +46,13 @@ type GenericSigner struct {
 
 // NewGenericSigner builds a signer that will sign everything with the provided private key
 func NewGenericSigner(privKey *ecdsa.PrivateKey) *GenericSigner {
+	addr, err := NewEthereumAddress(privKey.PublicKey)
+	if err != nil {
+		panic(err)
+	}
 	return &GenericSigner{
 		PrivKey: privKey,
-		address: crypto.PubkeyToAddress(privKey.PublicKey),
+		address: addr,
 	}
 }
 
