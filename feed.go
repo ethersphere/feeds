@@ -18,8 +18,11 @@ package feed
 
 import (
 	"encoding/hex"
+	"errors"
 	"hash"
 	"unsafe"
+
+	"golang.org/x/crypto/sha3"
 )
 
 // Lengths of hashes and addresses in bytes.
@@ -32,6 +35,28 @@ const (
 
 // Address represents the 20 byte address of an Ethereum account.
 type Address [AddressLength]byte
+
+// Hex returns an EIP55-compliant hex string representation of the address.
+func (a Address) Hex() string {
+	unchecksummed := hex.EncodeToString(a[:])
+	sha := sha3.NewLegacyKeccak256()
+	sha.Write([]byte(unchecksummed))
+	hash := sha.Sum(nil)
+
+	result := []byte(unchecksummed)
+	for i := 0; i < len(result); i++ {
+		hashByte := hash[i/2]
+		if i%2 == 0 {
+			hashByte = hashByte >> 4
+		} else {
+			hashByte &= 0xf
+		}
+		if result[i] > '9' && hashByte > 7 {
+			result[i] -= 32
+		}
+	}
+	return "0x" + string(result)
+}
 
 // Feed represents a particular user's stream of updates on a topic
 type Feed struct {
@@ -125,7 +150,10 @@ func (f *Feed) FromValues(values Values) (err error) {
 	if err != nil {
 		return err
 	}
-	f.User = Address{addr[:AddressLength]}
+	if len(addr) < AddressLength {
+		return errors.New("address too short")
+	}
+	f.User = addr[:AddressLength]
 	return nil
 }
 

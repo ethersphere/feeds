@@ -16,6 +16,8 @@
 
 package feed
 
+import "encoding/hex"
+
 type binarySerializer interface {
 	binaryPut(serializedData []byte) error
 	binaryLength() int
@@ -38,5 +40,5 @@ type valueSerializer interface {
 func Hex(bin binarySerializer) string {
 	b := make([]byte, bin.binaryLength())
 	bin.binaryPut(b)
-	return hex.EncodeString(b)
+	return hex.EncodeToString(b)
 }

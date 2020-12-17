@@ -157,7 +157,7 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 	}
 
 	// we can't look for anything without a store
-	if h.chunkStore == nil {
+	if h.loadsaver == nil {
 		return nil, NewError(ErrInit, "Call Handler.SetStore() before performing lookups")
 	}
 
@@ -174,8 +174,7 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 		ctx, cancel := context.WithTimeout(ctx, defaultRetrieveTimeout)
 		defer cancel()
 
-		//r := storage.NewRequest(id.Addr())
-		ch, err := h.chunkStore.Get(ctx)
+		data, err := h.loadsaver.Load(ctx, id.Addr())
 		if err != nil {
 			if err == context.DeadlineExceeded { // chunk not found
 				panic("need to sort this out")
@@ -185,7 +184,7 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 		}
 
 		var request Request
-		if err := request.fromChunk(ch); err != nil {
+		if err := request.fromChunk(id.Addr(), data); err != nil {
 			return nil, nil
 		}
 		if request.Time <= timeLimit {
@@ -235,7 +234,7 @@ func (h *Handler) updateCache(request *Request) (*cacheEntry, error) {
 func (h *Handler) Update(ctx context.Context, r *Request) (updateAddr []byte, err error) {
 
 	// we can't update anything without a store
-	if h.chunkStore == nil {
+	if h.loadsaver == nil {
 		return nil, NewError(ErrInit, "Call Handler.SetStore() before updating")
 	}
 
@@ -244,12 +243,12 @@ func (h *Handler) Update(ctx context.Context, r *Request) (updateAddr []byte, er
 		return nil, NewError(ErrInvalidValue, "A former update in this epoch is already known to exist")
 	}
 
-	ch, err := r.toChunk() // Serialize the update into a chunk. Fails if data is too big
+	addr, data, err := r.toChunk() // Serialize the update into a chunk. Fails if data is too big
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = h.chunkStore.Put(ctx, ch)
+	_, err = h.loadsaver.Save(ctx, addr, data)
 	if err != nil {
 		return nil, err
 	}

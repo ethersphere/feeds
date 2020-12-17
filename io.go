@@ -8,8 +8,8 @@ type Loader interface {
 }
 
 type Saver interface {
-	// Save an arbitrary byte slice and return the reference byte slice representation.
-	Save(context.Context, []byte) ([]byte, error)
+	// Save an arbitrary byte slice and its corresponding reference.
+	Save(context.Context, []byte, []byte) error
 }
 
 type LoadSaver interface {
