@@ -11,7 +11,7 @@ func TestTopic(t *testing.T) {
 	topicName := "test-topic"
 	topic, _ := NewTopic(topicName, related)
 	hex := topic.Hex()
-	expectedHex := "0xdfa89c750e3108f9c2aeef0123456789abcdef0123456789abcdef0123456789"
+	expectedHex := "dfa89c750e3108f9c2aeef0123456789abcdef0123456789abcdef0123456789"
 	if hex != expectedHex {
 		t.Fatalf("Expected %s, got %s", expectedHex, hex)
 	}
@@ -30,7 +30,7 @@ func TestTopic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedJSON := `"0xdfa89c750e3108f9c2aeef0123456789abcdef0123456789abcdef0123456789"`
+	expectedJSON := `"dfa89c750e3108f9c2aeef0123456789abcdef0123456789abcdef0123456789"`
 	equal, err := areEqualJSON(expectedJSON, string(bytes))
 	if err != nil {
 		t.Fatal(err)
