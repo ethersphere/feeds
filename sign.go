@@ -18,8 +18,10 @@ package feed
 
 import (
 	"crypto/ecdsa"
+	"errors"
+	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/btcsuite/btcd/btcec"
 )
 
 const signatureLength = 65
@@ -57,15 +59,44 @@ func NewGenericSigner(privKey *ecdsa.PrivateKey) *GenericSigner {
 	return s
 }
 
+// addEthereumPrefix adds the ethereum prefix to the data.
+func addEthereumPrefix(data []byte) []byte {
+	return []byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data))
+}
+
+// hashWithEthereumPrefix returns the hash that should be signed for the given data.
+func hashWithEthereumPrefix(data []byte) ([]byte, error) {
+	return LegacyKeccak256(addEthereumPrefix(data))
+}
+
 // Sign signs the supplied data
 // It wraps the ethereum crypto.Sign() method
 func (s *GenericSigner) Sign(data Hash) (signature Signature, err error) {
-	signaturebytes, err := crypto.Sign(data[:], s.PrivKey)
+	hash, err := hashWithEthereumPrefix(data[:])
 	if err != nil {
 		return
 	}
-	copy(signature[:], signaturebytes)
+
+	sig, err := s.sign(hash[:], true)
+	if err != nil {
+		return
+	}
+	copy(signature[:], sig)
 	return
+}
+
+// sign the provided hash and convert it to the ethereum (r,s,v) format.
+func (s *GenericSigner) sign(sighash []byte, isCompressedKey bool) ([]byte, error) {
+	signature, err := btcec.SignCompact(btcec.S256(), (*btcec.PrivateKey)(s.PrivKey), sighash, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to Ethereum signature format with 'recovery id' v at the end.
+	v := signature[0]
+	copy(signature, signature[1:])
+	signature[64] = v
+	return signature, nil
 }
 
 // Address returns the public key of the signer's private key
@@ -75,7 +106,7 @@ func (s *GenericSigner) Address() Address {
 
 // getUserAddr extracts the address of the feed update signer
 func getUserAddr(digest Hash, signature Signature) (Address, error) {
-	pub, err := crypto.SigToPub(digest[:], signature[:])
+	pub, err := Recover(signature[:], digest[:])
 	if err != nil {
 		return Address{}, err
 	}
@@ -83,4 +114,24 @@ func getUserAddr(digest Hash, signature Signature) (Address, error) {
 	var aa Address
 	copy(aa[:], a)
 	return aa, nil
+}
+
+// Recover verifies signature with the data base provided.
+// It is using `btcec.RecoverCompact` function.
+func Recover(signature, data []byte) (*ecdsa.PublicKey, error) {
+	if len(signature) != 65 {
+		return nil, errors.New("invalid signature length")
+	}
+	// Convert to btcec input format with 'recovery id' v at the beginning.
+	btcsig := make([]byte, 65)
+	btcsig[0] = signature[64]
+	copy(btcsig[1:], signature)
+
+	hash, err := hashWithEthereumPrefix(data)
+	if err != nil {
+		return nil, err
+	}
+
+	p, _, err := btcec.RecoverCompact(btcec.S256(), btcsig, hash)
+	return (*ecdsa.PublicKey)(p), err
 }

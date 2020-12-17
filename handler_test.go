@@ -420,17 +420,17 @@ func Secp256k1PrivateKeyFromString(pk string) *ecdsa.PrivateKey {
 }
 
 func newAliceSigner() *GenericSigner {
-	privKey, _ := Secp256k1PrivateKeyFromString("deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+	privKey := Secp256k1PrivateKeyFromString("deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
 	return NewGenericSigner(privKey)
 }
 
 func newBobSigner() *GenericSigner {
-	privKey, _ := Secp256k1PrivateKeyFromString("accedeaccedeaccedeaccedeaccedeaccedeaccedeaccedeaccedeaccedecaca")
+	privKey := Secp256k1PrivateKeyFromString("accedeaccedeaccedeaccedeaccedeaccedeaccedeaccedeaccedeaccedecaca")
 	return NewGenericSigner(privKey)
 }
 
 func newCharlieSigner() *GenericSigner {
-	privKey, _ := Secp256k1PrivateKeyFromString("facadefacadefacadefacadefacadefacadefacadefacadefacadefacadefaca")
+	privKey := Secp256k1PrivateKeyFromString("facadefacadefacadefacadefacadefacadefacadefacadefacadefacadefaca")
 	return NewGenericSigner(privKey)
 }
 
