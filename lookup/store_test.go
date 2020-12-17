@@ -11,8 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethersphere/swarm/log"
-	"github.com/ethersphere/swarm/storage/feed/lookup"
+	"github.com/ethersphere/feeds/lookup"
 )
 
 // Data is a struct to keep a value to store/retrieve during testing
@@ -76,7 +75,7 @@ func (s *Store) Reset() {
 
 // Put stores a value in the mock store at the given epoch
 func (s *Store) Put(epoch lookup.Epoch, value *Data) {
-	log.Debug("Write: %d-%d, value='%d'\n", epoch.Base(), epoch.Level, value.Payload)
+	//log.Debug("Write: %d-%d, value='%d'\n", epoch.Base(), epoch.Level, value.Payload)
 	s.data[epoch.ID()] = value
 }
 

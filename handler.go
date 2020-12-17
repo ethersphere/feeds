@@ -24,17 +24,15 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ethersphere/swarm/chunk"
-	"github.com/ethersphere/swarm/storage"
-	"github.com/ethersphere/swarm/storage/feed/lookup"
+	"github.com/ethersphere/feeds/lookup"
 	"golang.org/x/crypto/sha3"
 )
 
 type Handler struct {
-	chunkStore *storage.NetStore
-	HashSize   int
-	cache      map[uint64]*cacheEntry
-	cacheLock  sync.RWMutex
+	loadsaver LoadSaver
+	HashSize  int
+	cache     map[uint64]*cacheEntry
+	cacheLock sync.RWMutex
 }
 
 // HandlerParams pass parameters to the Handler constructor NewHandler
@@ -63,15 +61,10 @@ func NewHandler(params *HandlerParams) *Handler {
 	return fh
 }
 
-// SetStore sets the store backend for the Swarm feeds API
-func (h *Handler) SetStore(store *storage.NetStore) {
-	h.chunkStore = store
-}
-
 // Validate is a chunk validation method
 // If it looks like a feed update, the chunk address is checked against the userAddr of the update's signature
 // It implements the storage.ChunkValidator interface
-func (h *Handler) Validate(data []byte) bool {
+func (h *Handler) Validate(addr, data []byte) bool {
 	if len(data) < minimumSignedUpdateLength {
 		return false
 	}
@@ -82,7 +75,7 @@ func (h *Handler) Validate(data []byte) bool {
 
 	// First, deserialize the chunk
 	var r Request
-	if err := r.fromChunk(chunk); err != nil {
+	if err := r.fromChunk(addr, data); err != nil {
 		//log.Debug("Invalid feed update chunk", "addr", chunk.Address(), "err", err)
 		return false
 	}
@@ -99,7 +92,7 @@ func (h *Handler) Validate(data []byte) bool {
 }
 
 // GetContent retrieves the data payload of the last synced update of the feed
-func (h *Handler) GetContent(feed *Feed) (storage.Address, []byte, error) {
+func (h *Handler) GetContent(feed *Feed) ([]byte, []byte, error) {
 	if feed == nil {
 		return nil, nil, NewError(ErrInvalidValue, "feed is nil")
 	}
@@ -181,10 +174,11 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 		ctx, cancel := context.WithTimeout(ctx, defaultRetrieveTimeout)
 		defer cancel()
 
-		r := storage.NewRequest(id.Addr())
-		ch, err := h.chunkStore.Get(ctx, chunk.ModeGetLookup, r)
+		//r := storage.NewRequest(id.Addr())
+		ch, err := h.chunkStore.Get(ctx)
 		if err != nil {
-			if err == context.DeadlineExceeded || err == storage.ErrNoSuitablePeer { // chunk not found
+			if err == context.DeadlineExceeded { // chunk not found
+				panic("need to sort this out")
 				return nil, nil
 			}
 			return nil, err
@@ -238,7 +232,7 @@ func (h *Handler) updateCache(request *Request) (*cacheEntry, error) {
 // An error will be returned if the total length of the chunk payload will exceed this limit.
 // Update can only check if the caller is trying to overwrite the very last known version, otherwise it just puts the update
 // on the network.
-func (h *Handler) Update(ctx context.Context, r *Request) (updateAddr storage.Address, err error) {
+func (h *Handler) Update(ctx context.Context, r *Request) (updateAddr []byte, err error) {
 
 	// we can't update anything without a store
 	if h.chunkStore == nil {
@@ -255,8 +249,7 @@ func (h *Handler) Update(ctx context.Context, r *Request) (updateAddr storage.Ad
 		return nil, err
 	}
 
-	// send the chunk
-	_, err = h.chunkStore.Put(ctx, chunk.ModePutUpload, ch)
+	_, err = h.chunkStore.Put(ctx, ch)
 	if err != nil {
 		return nil, err
 	}

@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"hash"
 
-	"github.com/ethersphere/swarm/storage/feed/lookup"
+	"github.com/ethersphere/feeds/lookup"
 )
 
 // Request represents a request to sign or signed feed update message
