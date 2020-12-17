@@ -28,7 +28,7 @@ func getTestFeed() *Feed {
 }
 
 func TestFeedSerializerDeserializer(t *testing.T) {
-	testBinarySerializerRecovery(t, getTestFeed(), "0x776f726c64206e657773207265706f72742c20657665727920686f7572000000876a8936a7cd0b79ef0735ad0896c1afe278781c")
+	testBinarySerializerRecovery(t, getTestFeed(), "776f726c64206e657773207265706f72742c20657665727920686f7572000000876a8936a7cd0b79ef0735ad0896c1afe278781c")
 }
 
 func TestFeedSerializerLengthCheck(t *testing.T) {
