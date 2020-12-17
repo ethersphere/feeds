@@ -55,7 +55,7 @@ func (a Address) Hex() string {
 			result[i] -= 32
 		}
 	}
-	return "0x" + string(result)
+	return string(result)
 }
 
 // Feed represents a particular user's stream of updates on a topic
