@@ -20,7 +20,7 @@ func TestIDAddr(t *testing.T) {
 }
 
 func TestIDSerializer(t *testing.T) {
-	testBinarySerializerRecovery(t, getTestID(), "0x776f726c64206e657773207265706f72742c20657665727920686f7572000000876a8936a7cd0b79ef0735ad0896c1afe278781ce80300000000001f")
+	testBinarySerializerRecovery(t, getTestID(), "776f726c64206e657773207265706f72742c20657665727920686f7572000000876a8936a7cd0b79ef0735ad0896c1afe278781ce80300000000001f")
 }
 
 func TestIDLengthCheck(t *testing.T) {
