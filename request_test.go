@@ -24,8 +24,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethersphere/swarm/storage/feed/lookup"
+	"github.com/ethersphere/feeds/lookup"
 )
 
 func areEqualJSON(s1, s2 string) (bool, error) {
@@ -203,12 +202,12 @@ func TestUpdateChunkSerializationErrorChecking(t *testing.T) {
 
 	r = *getTestRequest()
 
-	_, err := r.toChunk()
+	_, _, err := r.toChunk()
 	if err == nil {
 		t.Fatal("Expected request.toChunk to fail when there is no data")
 	}
 	r.data = []byte("Al bien hacer jamás le falta premio") // put some arbitrary length data
-	_, err = r.toChunk()
+	_, _, err = r.toChunk()
 	if err == nil {
 		t.Fatal("expected request.toChunk to fail when there is no signature")
 	}
@@ -218,15 +217,15 @@ func TestUpdateChunkSerializationErrorChecking(t *testing.T) {
 		t.Fatalf("error signing:%s", err)
 	}
 
-	chunk, err := r.toChunk()
+	addr, data, err := r.toChunk()
 	if err != nil {
 		t.Fatalf("error creating update chunk:%s", err)
 	}
 
-	compareByteSliceToExpectedHex(t, "chunk", chunk.Data(), "0x0000000000000000776f726c64206e657773207265706f72742c20657665727920686f7572000000876a8936a7cd0b79ef0735ad0896c1afe278781ce80300000000001f416c206269656e206861636572206a616dc3a173206c652066616c7461207072656d696f9896df5937e64e51a7994479ff3fe0ed790d539b9b3e85e93c0014a8a64374f23603c79d16e99b50a757896d3816d7022ac594ad1415679a9b164afb2e5926d801")
+	compareByteSliceToExpectedHex(t, "chunk", data, "0x0000000000000000776f726c64206e657773207265706f72742c20657665727920686f7572000000876a8936a7cd0b79ef0735ad0896c1afe278781ce80300000000001f416c206269656e206861636572206a616dc3a173206c652066616c7461207072656d696f9896df5937e64e51a7994479ff3fe0ed790d539b9b3e85e93c0014a8a64374f23603c79d16e99b50a757896d3816d7022ac594ad1415679a9b164afb2e5926d801")
 
 	var recovered Request
-	recovered.fromChunk(chunk)
+	recovered.fromChunk(addr, data)
 	if !reflect.DeepEqual(recovered, r) {
 		t.Fatal("Expected recovered feed update request to equal the original one")
 	}
@@ -275,14 +274,14 @@ func TestReverse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	chunk, err := request.toChunk()
+	chunkAddr, chunkData, err := request.toChunk()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// check that we can recover the owner account from the update chunk's signature
 	var checkUpdate Request
-	if err := checkUpdate.fromChunk(chunk); err != nil {
+	if err := checkUpdate.fromChunk(chunkAddr, chunkData); err != nil {
 		t.Fatal(err)
 	}
 	checkdigest, err := checkUpdate.GetDigest()
@@ -293,15 +292,18 @@ func TestReverse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Retrieve address from signature fail: %v", err)
 	}
-	originalAddr := crypto.PubkeyToAddress(signer.PrivKey.PublicKey)
+	originalAddr, err := NewEthereumAddress(signer.PrivKey.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// check that the metadata retrieved from the chunk matches what we gave it
-	if recoveredAddr != originalAddr {
+	if !bytes.Equal(recoveredAddr[:], originalAddr) {
 		t.Fatalf("addresses dont match: %x != %x", originalAddr, recoveredAddr)
 	}
 
-	if !bytes.Equal(key[:], chunk.Address()[:]) {
-		t.Fatalf("Expected chunk key '%x', was '%x'", key, chunk.Address())
+	if !bytes.Equal(key[:], chunkAddr) {
+		t.Fatalf("Expected chunk key '%x', was '%x'", key, chunkAddr)
 	}
 	if epoch != checkUpdate.Epoch {
 		t.Fatalf("Expected epoch to be '%s', was '%s'", epoch.String(), checkUpdate.Epoch.String())

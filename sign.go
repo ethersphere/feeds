@@ -49,16 +49,18 @@ func NewGenericSigner(privKey *ecdsa.PrivateKey) *GenericSigner {
 	if err != nil {
 		panic(err)
 	}
-	return &GenericSigner{
+
+	s := &GenericSigner{
 		PrivKey: privKey,
-		address: addr,
 	}
+	copy(s.address[:], addr)
+	return s
 }
 
 // Sign signs the supplied data
 // It wraps the ethereum crypto.Sign() method
 func (s *GenericSigner) Sign(data Hash) (signature Signature, err error) {
-	signaturebytes, err := crypto.Sign(data.Bytes(), s.PrivKey)
+	signaturebytes, err := crypto.Sign(data[:], s.PrivKey)
 	if err != nil {
 		return
 	}
@@ -73,9 +75,12 @@ func (s *GenericSigner) Address() Address {
 
 // getUserAddr extracts the address of the feed update signer
 func getUserAddr(digest Hash, signature Signature) (Address, error) {
-	pub, err := crypto.SigToPub(digest.Bytes(), signature[:])
+	pub, err := crypto.SigToPub(digest[:], signature[:])
 	if err != nil {
 		return Address{}, err
 	}
-	return crypto.PubkeyToAddress(*pub), nil
+	a, _ := NewEthereumAddress(*pub)
+	var aa Address
+	copy(aa[:], a)
+	return aa, nil
 }

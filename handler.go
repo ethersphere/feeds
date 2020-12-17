@@ -248,7 +248,7 @@ func (h *Handler) Update(ctx context.Context, r *Request) (updateAddr []byte, er
 		return nil, err
 	}
 
-	_, err = h.loadsaver.Save(ctx, addr, data)
+	err = h.loadsaver.Save(ctx, addr, data)
 	if err != nil {
 		return nil, err
 	}

@@ -153,7 +153,7 @@ func (f *Feed) FromValues(values Values) (err error) {
 	if len(addr) < AddressLength {
 		return errors.New("address too short")
 	}
-	f.User = addr[:AddressLength]
+	copy(f.User[:], addr[:AddressLength])
 	return nil
 }
 

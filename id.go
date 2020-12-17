@@ -21,7 +21,7 @@ import (
 	"hash"
 	"strconv"
 
-	"github.com/ethersphere/swarm/storage/feed/lookup"
+	"github.com/ethersphere/feeds/lookup"
 )
 
 // ID uniquely identifies an update on the network.

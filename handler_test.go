@@ -26,11 +26,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethersphere/swarm/chunk"
+	"github.com/ethersphere/feeds/lookup"
 	"github.com/ethersphere/swarm/storage"
-	"github.com/ethersphere/swarm/storage/feed/lookup"
-	"github.com/ethersphere/swarm/storage/localstore"
 	"github.com/ethersphere/swarm/testutil"
 )
 
@@ -190,7 +187,7 @@ func TestFeedsHandler(t *testing.T) {
 	}
 
 	time.Sleep(time.Second)
-	feedsHandler.Close()
+	//feedsHandler.Close()
 
 	// check we can retrieve the updates after close
 	clock.FastForward(2000) // t=6285
@@ -217,7 +214,7 @@ func TestFeedsHandler(t *testing.T) {
 	if update2.Base() != 0 {
 		t.Fatalf("feed update epoch base time was %d, expected 0", update2.Base())
 	}
-	log.Debug("Latest lookup", "epoch base time", update2.Base(), "epoch level", update2.Level, "data", update2.data)
+	//log.Debug("Latest lookup", "epoch base time", update2.Base(), "epoch level", update2.Level, "data", update2.data)
 
 	// specific point in time
 	update, err := feedsHandler2.Lookup(ctx, NewQuery(&request.Feed, 4284, lookup.NoClue))
@@ -228,7 +225,7 @@ func TestFeedsHandler(t *testing.T) {
 	if !bytes.Equal(update.data, []byte(updates[2])) {
 		t.Fatalf("feed update data (historical) was %v, expected %v", string(update2.data), updates[2])
 	}
-	log.Debug("Historical lookup", "epoch base time", update2.Base(), "epoch level", update2.Level, "data", update2.data)
+	//log.Debug("Historical lookup", "epoch base time", update2.Base(), "epoch level", update2.Level, "data", update2.data)
 
 	// beyond the first should yield an error
 	update, err = feedsHandler2.Lookup(ctx, NewQuery(&request.Feed, startTime.Time-1, lookup.NoClue))
@@ -360,101 +357,21 @@ func TestValidator(t *testing.T) {
 		t.Fatalf("sign fail: %v", err)
 	}
 
-	chunk, err := mr.toChunk()
+	addr, data, err := mr.toChunk()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !rh.Validate(chunk) {
+	if !rh.Validate(addr, data) {
 		t.Fatal("Chunk validator fail on update chunk")
 	}
 
-	address := chunk.Address()
+	address := addr
 	// mess with the address
 	address[0] = 11
 	address[15] = 99
 
-	if rh.Validate(storage.NewChunk(address, chunk.Data())) {
+	if rh.Validate(address, data) {
 		t.Fatal("Expected Validate to fail with false chunk address")
-	}
-}
-
-// tests that the content address validator correctly checks the data
-// tests that feed update chunks are passed through content address validator
-// there is some redundancy in this test as it also tests content addressed chunks,
-// which should be evaluated as invalid chunks by this validator
-func TestValidatorInStore(t *testing.T) {
-
-	// make fake timeProvider
-	TimestampProvider = &fakeTimeProvider{
-		currentTime: startTime.Time,
-	}
-
-	// signer containing private key
-	signer := newAliceSigner()
-
-	// set up localstore
-	datadir, err := ioutil.TempDir("", "storage-testfeedsvalidator")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(datadir)
-
-	localstore, err := localstore.New(datadir, make([]byte, 32), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// set up Swarm feeds handler and add is as a validator to the localstore
-	fhParams := &HandlerParams{}
-	fh := NewHandler(fhParams)
-	store := chunk.NewValidatorStore(localstore, fh)
-
-	// create content addressed chunks, one good, one faulty
-	chunks := storage.GenerateRandomChunks(chunk.DefaultSize, 2)
-	goodChunk := chunks[0]
-	badChunk := storage.NewChunk(chunks[1].Address(), goodChunk.Data())
-
-	topic, _ := NewTopic("xyzzy", nil)
-	fd := Feed{
-		Topic: topic,
-		User:  signer.Address(),
-	}
-
-	// create a feed update chunk with correct publickey
-	id := ID{
-		Epoch: lookup.Epoch{Time: 42,
-			Level: 1,
-		},
-		Feed: fd,
-	}
-
-	updateAddr := id.Addr()
-	data := []byte("bar")
-
-	r := new(Request)
-	r.idAddr = updateAddr
-	r.Update.ID = id
-	r.data = data
-
-	r.Sign(signer)
-
-	uglyChunk, err := r.toChunk()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// put the chunks in the store and check their error status
-	_, err = store.Put(context.Background(), chunk.ModePutUpload, goodChunk)
-	if err == nil {
-		t.Fatal("expected error on good content address chunk with feed update validator only, but got nil")
-	}
-	_, err = store.Put(context.Background(), chunk.ModePutUpload, badChunk)
-	if err == nil {
-		t.Fatal("expected error on bad content address chunk with feed update validator only, but got nil")
-	}
-	_, err = store.Put(context.Background(), chunk.ModePutUpload, uglyChunk)
-	if err != nil {
-		t.Fatalf("expected no error on feed update chunk with feed update validator only, but got: %s", err)
 	}
 }
 
