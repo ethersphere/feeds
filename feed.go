@@ -18,6 +18,7 @@ package feed
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"hash"
 	"unsafe"
@@ -56,6 +57,24 @@ func (a Address) Hex() string {
 		}
 	}
 	return string(result)
+}
+
+func (a *Address) MarshalJSON() ([]byte, error) {
+	return json.Marshal(hex.EncodeToString(a[:]))
+}
+
+func (a *Address) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	v, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	copy(a[:], v[:AddressLength])
+	return nil
 }
 
 // Feed represents a particular user's stream of updates on a topic

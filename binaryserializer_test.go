@@ -34,6 +34,7 @@ func (kv KV) Set(key, value string) {
 }
 
 func compareByteSliceToExpectedHex(t *testing.T, variableName string, actualValue []byte, expectedHex string) {
+	t.Helper()
 	if hex.EncodeToString(actualValue) != expectedHex {
 		t.Fatalf("%s: Expected %s to be %s, got %s", t.Name(), variableName, expectedHex, hex.EncodeToString(actualValue))
 	}

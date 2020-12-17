@@ -27,7 +27,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethersphere/feeds/lookup"
-	"github.com/ethersphere/swarm/storage"
 	"github.com/ethersphere/swarm/testutil"
 )
 
@@ -81,6 +80,9 @@ func TestFeedsHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	ls := newMockLoadSaver()
+	feedsHandler.SetLoadSaver(ls)
 	defer teardownTest()
 
 	// create a new feed
@@ -102,7 +104,7 @@ func TestFeedsHandler(t *testing.T) {
 	}
 
 	request := NewFirstRequest(fd.Topic) // this timestamps the update at t = 4200 (start time)
-	chunkAddress := make(map[string]storage.Address)
+	chunkAddress := make(map[string][]byte)
 	data := []byte(updates[0])
 	request.SetData(data)
 	if err := request.Sign(signer); err != nil {
@@ -121,7 +123,7 @@ func TestFeedsHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 	if request.Epoch.Base() != 0 || request.Epoch.Level != lookup.HighestLevel-1 {
-		t.Fatalf("Suggested epoch BaseTime should be 0 and Epoch level should be %d", lookup.HighestLevel-1)
+		t.Fatalf("Suggested epoch BaseTime should be 0 and Epoch level should be %d, instead got %d and %d", lookup.HighestLevel-1, request.Epoch.Base(), request.Epoch.Level)
 	}
 
 	request.Epoch.Level = lookup.HighestLevel // force level 25 instead of 24 to make it fail
@@ -198,6 +200,7 @@ func TestFeedsHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	feedsHandler2.SetLoadSaver(ls)
 
 	update2, err := feedsHandler2.Lookup(ctx, NewQueryLatest(&request.Feed, lookup.NoClue))
 	if err != nil {
@@ -257,6 +260,10 @@ func TestSparseUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	ls := newMockLoadSaver()
+	rh.SetLoadSaver(ls)
+
 	defer teardownTest()
 	defer os.RemoveAll(datadir)
 
@@ -417,4 +424,28 @@ func newBobSigner() *GenericSigner {
 func newCharlieSigner() *GenericSigner {
 	privKey, _ := crypto.HexToECDSA("facadefacadefacadefacadefacadefacadefacadefacadefacadefacadefaca")
 	return NewGenericSigner(privKey)
+}
+
+func newMockLoadSaver() LoadSaver {
+	return &loadsave{
+		vals: make(map[string][]byte),
+	}
+}
+
+type loadsave struct {
+	vals map[string][]byte
+}
+
+// Load a reference in byte slice representation and return all content associated with the reference.
+func (ls *loadsave) Load(_ context.Context, addr []byte) ([]byte, error) {
+	if v, ok := ls.vals[string(addr)]; ok {
+		return v, nil
+	}
+	return nil, NewError(1, "abcd")
+}
+
+// Save an arbitrary byte slice and its corresponding reference.
+func (ls *loadsave) Save(_ context.Context, addr []byte, data []byte) error {
+	ls.vals[string(addr)] = data
+	return nil
 }

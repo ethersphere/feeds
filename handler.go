@@ -61,6 +61,10 @@ func NewHandler(params *HandlerParams) *Handler {
 	return fh
 }
 
+func (h *Handler) SetLoadSaver(ls LoadSaver) {
+	h.loadsaver = ls
+}
+
 // Validate is a chunk validation method
 // If it looks like a feed update, the chunk address is checked against the userAddr of the update's signature
 // It implements the storage.ChunkValidator interface
@@ -176,6 +180,7 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 
 		data, err := h.loadsaver.Load(ctx, id.Addr())
 		if err != nil {
+			return nil, nil
 			if err == context.DeadlineExceeded { // chunk not found
 				panic("need to sort this out")
 				return nil, nil
