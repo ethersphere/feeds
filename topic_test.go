@@ -1,13 +1,12 @@
 package feed
 
 import (
+	"encoding/hex"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 func TestTopic(t *testing.T) {
-	related, _ := hexutil.Decode("0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	related, _ := hex.DecodeString("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	topicName := "test-topic"
 	topic, _ := NewTopic(topicName, related)
 	hex := topic.Hex()

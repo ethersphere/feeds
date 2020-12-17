@@ -19,15 +19,16 @@ package feed
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/ethersphere/feeds/lookup"
-	"github.com/ethersphere/swarm/testutil"
 )
 
 var (
@@ -37,10 +38,6 @@ var (
 	cleanF       func()
 	subtopicName = "føø.bar"
 )
-
-func init() {
-	testutil.Init()
-}
 
 // simulated timeProvider
 type fakeTimeProvider struct {
@@ -411,18 +408,29 @@ func setupTest(timeProvider timestampProvider, signer Signer) (fh *TestHandler, 
 	return fh, datadir, cleanF, err
 }
 
+// Secp256k1PrivateKeyFromBytes returns an ECDSA private key based on
+// the byte slice.
+func Secp256k1PrivateKeyFromString(pk string) *ecdsa.PrivateKey {
+	data, err := hex.DecodeString(pk)
+	if err != nil {
+		panic(err)
+	}
+	privk, _ := btcec.PrivKeyFromBytes(btcec.S256(), data)
+	return (*ecdsa.PrivateKey)(privk)
+}
+
 func newAliceSigner() *GenericSigner {
-	privKey, _ := crypto.HexToECDSA("deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+	privKey, _ := Secp256k1PrivateKeyFromString("deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
 	return NewGenericSigner(privKey)
 }
 
 func newBobSigner() *GenericSigner {
-	privKey, _ := crypto.HexToECDSA("accedeaccedeaccedeaccedeaccedeaccedeaccedeaccedeaccedeaccedecaca")
+	privKey, _ := Secp256k1PrivateKeyFromString("accedeaccedeaccedeaccedeaccedeaccedeaccedeaccedeaccedeaccedecaca")
 	return NewGenericSigner(privKey)
 }
 
 func newCharlieSigner() *GenericSigner {
-	privKey, _ := crypto.HexToECDSA("facadefacadefacadefacadefacadefacadefacadefacadefacadefacadefaca")
+	privKey, _ := Secp256k1PrivateKeyFromString("facadefacadefacadefacadefacadefacadefacadefacadefacadefacadefaca")
 	return NewGenericSigner(privKey)
 }
 
