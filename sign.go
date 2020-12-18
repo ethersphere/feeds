@@ -131,8 +131,11 @@ func Recover(signature, data []byte) (*ecdsa.PublicKey, error) {
 	btcsig[0] = signature[64]
 	copy(btcsig[1:], signature)
 
-	hash := data
+	//hash, err := hashWithEthereumPrefix(data)
+	//if err != nil {
+	//return nil, err
+	//}
 
-	p, _, err := btcec.RecoverCompact(btcec.S256(), btcsig, hash)
+	p, _, err := btcec.RecoverCompact(btcec.S256(), btcsig, data)
 	return (*ecdsa.PublicKey)(p), err
 }

@@ -39,7 +39,7 @@ const idLength = feedLength + lookup.EpochLength
 func (u *ID) Addr() []byte {
 	serializedData := make([]byte, idLength)
 	var cursor int
-	u.Feed.binaryPut(serializedData[cursor : cursor+feedLength])
+	_ = u.Feed.binaryPut(serializedData[cursor : cursor+feedLength])
 	cursor += feedLength
 
 	eid := u.Epoch.ID()
@@ -48,7 +48,7 @@ func (u *ID) Addr() []byte {
 	hasher := hashPool.Get().(hash.Hash)
 	defer hashPool.Put(hasher)
 	hasher.Reset()
-	hasher.Write(serializedData)
+	_, _ = hasher.Write(serializedData)
 	return hasher.Sum(nil)
 }
 
@@ -68,7 +68,6 @@ func (u *ID) binaryPut(serializedData []byte) error {
 		return err
 	}
 	copy(serializedData[cursor:cursor+lookup.EpochLength], epochBytes[:])
-	cursor += lookup.EpochLength
 
 	return nil
 }
@@ -90,12 +89,7 @@ func (u *ID) binaryGet(serializedData []byte) error {
 	}
 	cursor += feedLength
 
-	if err := u.Epoch.UnmarshalBinary(serializedData[cursor : cursor+lookup.EpochLength]); err != nil {
-		return err
-	}
-	cursor += lookup.EpochLength
-
-	return nil
+	return u.Epoch.UnmarshalBinary(serializedData[cursor : cursor+lookup.EpochLength])
 }
 
 // FromValues deserializes this instance from a string key-value store

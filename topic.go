@@ -94,7 +94,10 @@ func (t *Topic) Name(relatedContent []byte) string {
 // UnmarshalJSON implements the json.Unmarshaller interface
 func (t *Topic) UnmarshalJSON(data []byte) error {
 	var hex string
-	json.Unmarshal(data, &hex)
+	err := json.Unmarshal(data, &hex)
+	if err != nil {
+		return err
+	}
 	return t.FromHex(hex)
 }
 

@@ -39,6 +39,6 @@ type valueSerializer interface {
 // Hex serializes the structure and converts it to a hex string
 func Hex(bin binarySerializer) string {
 	b := make([]byte, bin.binaryLength())
-	bin.binaryPut(b)
+	_ = bin.binaryPut(b)
 	return hex.EncodeToString(b)
 }

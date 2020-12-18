@@ -144,7 +144,7 @@ func (r *Request) GetDigest() (result Hash, err error) {
 			return result, err
 		}
 	}
-	hasher.Write(r.binaryData[:dataLength]) //everything except the signature.
+	_, _ = hasher.Write(r.binaryData[:dataLength]) //everything except the signature.
 	sum := hasher.Sum(nil)
 	copy(result[:], sum[:HashLength])
 	return result, nil

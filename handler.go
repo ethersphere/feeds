@@ -181,11 +181,6 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 		data, err := h.loadsaver.Load(ctx, id.Addr())
 		if err != nil {
 			return nil, nil
-			if err == context.DeadlineExceeded { // chunk not found
-				panic("need to sort this out")
-				return nil, nil
-			}
-			return nil, err
 		}
 
 		var request Request

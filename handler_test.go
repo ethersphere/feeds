@@ -281,7 +281,7 @@ func TestSparseUpdates(t *testing.T) {
 		request := NewFirstRequest(fd.Topic)
 		request.Epoch = lookup.GetNextEpoch(epoch, T)
 		request.data = generateData(T) // this generates some data that depends on T, so we can check later
-		request.Sign(signer)
+		err := request.Sign(signer)
 		if err != nil {
 			t.Fatal(err)
 		}

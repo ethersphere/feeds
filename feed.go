@@ -41,7 +41,7 @@ type Address [AddressLength]byte
 func (a Address) Hex() string {
 	unchecksummed := hex.EncodeToString(a[:])
 	sha := sha3.NewLegacyKeccak256()
-	sha.Write([]byte(unchecksummed))
+	_, _ = sha.Write([]byte(unchecksummed))
 	hash := sha.Sum(nil)
 
 	result := []byte(unchecksummed)
@@ -91,11 +91,11 @@ const feedLength = TopicLength + AddressLength
 // mapKey calculates a unique id for this feed. Used by the cache map in `Handler`
 func (f *Feed) mapKey() uint64 {
 	serializedData := make([]byte, feedLength)
-	f.binaryPut(serializedData)
+	_ = f.binaryPut(serializedData)
 	hasher := hashPool.Get().(hash.Hash)
 	defer hashPool.Put(hasher)
 	hasher.Reset()
-	hasher.Write(serializedData)
+	_, _ = hasher.Write(serializedData)
 	hash := hasher.Sum(nil)
 	return *(*uint64)(unsafe.Pointer(&hash[0]))
 }
@@ -108,9 +108,7 @@ func (f *Feed) binaryPut(serializedData []byte) error {
 	var cursor int
 	copy(serializedData[cursor:cursor+TopicLength], f.Topic[:TopicLength])
 	cursor += TopicLength
-
 	copy(serializedData[cursor:cursor+AddressLength], f.User[:])
-	cursor += AddressLength
 
 	return nil
 }
@@ -129,9 +127,7 @@ func (f *Feed) binaryGet(serializedData []byte) error {
 	var cursor int
 	copy(f.Topic[:], serializedData[cursor:cursor+TopicLength])
 	cursor += TopicLength
-
 	copy(f.User[:], serializedData[cursor:cursor+AddressLength])
-	cursor += AddressLength
 
 	return nil
 }
@@ -139,7 +135,7 @@ func (f *Feed) binaryGet(serializedData []byte) error {
 // Hex serializes the feed to a hex string
 func (f *Feed) Hex() string {
 	serializedData := make([]byte, feedLength)
-	f.binaryPut(serializedData)
+	_ = f.binaryPut(serializedData)
 	return hex.EncodeToString(serializedData)
 }
 
