@@ -18,6 +18,7 @@ package feed
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -72,12 +73,12 @@ func hashWithEthereumPrefix(data []byte) ([]byte, error) {
 // Sign signs the supplied data
 // It wraps the ethereum crypto.Sign() method
 func (s *GenericSigner) Sign(data Hash) (signature Signature, err error) {
-	hash, err := hashWithEthereumPrefix(data[:])
-	if err != nil {
-		return
-	}
+	//hash, err := hashWithEthereumPrefix(data[:])
+	//if err != nil {
+	//return
+	//}
 
-	sig, err := s.sign(hash[:], true)
+	sig, err := s.sign(data[:], true)
 	if err != nil {
 		return
 	}
@@ -93,9 +94,12 @@ func (s *GenericSigner) sign(sighash []byte, isCompressedKey bool) ([]byte, erro
 	}
 
 	// Convert to Ethereum signature format with 'recovery id' v at the end.
+	fmt.Println(hex.EncodeToString(signature))
 	v := signature[0]
 	copy(signature, signature[1:])
 	signature[64] = v
+	fmt.Println(hex.EncodeToString(signature))
+
 	return signature, nil
 }
 
@@ -127,10 +131,7 @@ func Recover(signature, data []byte) (*ecdsa.PublicKey, error) {
 	btcsig[0] = signature[64]
 	copy(btcsig[1:], signature)
 
-	hash, err := hashWithEthereumPrefix(data)
-	if err != nil {
-		return nil, err
-	}
+	hash := data
 
 	p, _, err := btcec.RecoverCompact(btcec.S256(), btcsig, hash)
 	return (*ecdsa.PublicKey)(p), err

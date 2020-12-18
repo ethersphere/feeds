@@ -449,7 +449,7 @@ func (ls *loadsave) Load(_ context.Context, addr []byte) ([]byte, error) {
 	if v, ok := ls.vals[string(addr)]; ok {
 		return v, nil
 	}
-	return nil, NewError(1, "abcd")
+	return nil, NewError(1, "not found")
 }
 
 // Save an arbitrary byte slice and its corresponding reference.
