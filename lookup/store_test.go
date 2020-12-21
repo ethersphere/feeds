@@ -36,24 +36,12 @@ type StoreConfig struct {
 	SuccessfulReadTime time.Duration // time it takes to fetch data
 }
 
-// StoreCounters will track read count metrics
-type StoreCounters struct {
-	reads           int
-	cacheHits       int
-	failed          int
-	successful      int
-	canceled        int
-	maxSimultaneous int
-}
-
 // Store simulates a store and keeps track of performance counters
 type Store struct {
 	StoreConfig
-	StoreCounters
-	data        DataMap
-	cache       DataMap
-	lock        sync.RWMutex
-	activeReads int
+	data  DataMap
+	cache DataMap
+	lock  sync.RWMutex
 }
 
 // NewStore returns a new mock store ready for use
@@ -70,7 +58,6 @@ func NewStore(config *StoreConfig) *Store {
 // Reset reset performance counters and clears the cache
 func (s *Store) Reset() {
 	s.cache = make(DataMap)
-	s.StoreCounters = StoreCounters{}
 }
 
 // Put stores a value in the mock store at the given epoch
@@ -95,33 +82,20 @@ func (s *Store) Get(ctx context.Context, epoch lookup.Epoch, now uint64) (value 
 		select {
 		case <-lookup.TimeAfter(operationTime):
 		case <-ctx.Done():
-			s.lock.Lock()
-			s.canceled++
-			s.lock.Unlock()
 			value = nil
 			err = ctx.Err()
 		}
-		s.lock.Lock()
-		s.activeReads--
-		s.lock.Unlock()
 	}()
 
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.reads++
-	s.activeReads++
-	if s.activeReads > s.maxSimultaneous {
-		s.maxSimultaneous = s.activeReads
-	}
 
 	// 1.- Simulate a cache read
 	item := s.cache[epochID]
 	operationTime += s.CacheReadTime
 
 	if item != nil {
-		s.cacheHits++
 		if item.Time <= now {
-			s.successful++
 			return item, nil
 		}
 		return nil, nil
@@ -132,14 +106,12 @@ func (s *Store) Get(ctx context.Context, epoch lookup.Epoch, now uint64) (value 
 	item = s.data[epochID]
 	if item != nil {
 		operationTime += s.SuccessfulReadTime
-		s.successful++
 		s.cache[epochID] = item
 		if item.Time <= now {
 			return item, nil
 		}
 	} else {
 		operationTime += s.FailedReadTime
-		s.failed++
 	}
 	return nil, nil
 }

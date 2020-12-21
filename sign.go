@@ -60,15 +60,15 @@ func NewGenericSigner(privKey *ecdsa.PrivateKey) *GenericSigner {
 	return s
 }
 
-// addEthereumPrefix adds the ethereum prefix to the data.
-func addEthereumPrefix(data []byte) []byte {
-	return []byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data))
-}
+//// addEthereumPrefix adds the ethereum prefix to the data.
+//func addEthereumPrefix(data []byte) []byte {
+//return []byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data))
+//}
 
-// hashWithEthereumPrefix returns the hash that should be signed for the given data.
-func hashWithEthereumPrefix(data []byte) ([]byte, error) {
-	return LegacyKeccak256(addEthereumPrefix(data))
-}
+//// hashWithEthereumPrefix returns the hash that should be signed for the given data.
+//func hashWithEthereumPrefix(data []byte) ([]byte, error) {
+//return LegacyKeccak256(addEthereumPrefix(data))
+//}
 
 // Sign signs the supplied data
 // It wraps the ethereum crypto.Sign() method

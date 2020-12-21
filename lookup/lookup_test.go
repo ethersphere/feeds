@@ -18,8 +18,6 @@ package lookup_test
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -34,15 +32,6 @@ type AlgorithmInfo struct {
 var algorithms = []AlgorithmInfo{
 	{lookup.FluzCapacitorAlgorithm, "FluzCapacitor"},
 	{lookup.LongEarthAlgorithm, "LongEarth"},
-}
-
-const enablePrintMetrics = false // set to true to display algorithm benchmarking stats
-
-func printMetric(metric string, store *Store, elapsed time.Duration) {
-	if enablePrintMetrics {
-		fmt.Printf("metric=%s, readcount=%d (successful=%d, failed=%d), cached=%d, canceled=%d, maxSimult=%d, elapsed=%s\n", metric,
-			store.reads, store.successful, store.failed, store.cacheHits, store.canceled, store.maxSimultaneous, elapsed)
-	}
 }
 
 const Day = 60 * 60 * 24
@@ -105,7 +94,6 @@ func TestLookup(t *testing.T) {
 				}
 
 			})
-			printMetric("SIMPLE READ", store, timeElapsedWithoutHint)
 
 			store.Reset() // reset the read counters for the next test
 
@@ -121,7 +109,6 @@ func TestLookup(t *testing.T) {
 					t.Fatalf("Expected lookup to return the last written value: %v. Got %v", lastData, value)
 				}
 			})
-			printMetric("WITH HINT", store, stopwatch.Elapsed())
 
 			if timeElapsed > timeElapsedWithoutHint {
 				t.Fatalf("Expected lookup to complete faster than %s since we provided a hint. Took %s", timeElapsedWithoutHint, timeElapsed)
@@ -133,7 +120,7 @@ func TestLookup(t *testing.T) {
 			// if we look for a value in, e.g., now - Year*3 + 6*Month, we should get that value
 			// Since the "payload" is the timestamp itself, we can check this.
 			expectedTime := now - Year*3 + 6*Month
-			timeElapsed = stopwatch.Measure(func() {
+			_ = stopwatch.Measure(func() {
 				value, err := algo.Lookup(context.Background(), expectedTime, lookup.NoClue, readFunc)
 				if err != nil {
 					t.Fatal(err)
@@ -149,7 +136,6 @@ func TestLookup(t *testing.T) {
 					t.Fatalf("Expected value timestamp to be %d, got %d", data.Time, expectedTime)
 				}
 			})
-			printMetric("INTERMEDIATE READ", store, timeElapsed)
 		})
 	}
 }
@@ -179,7 +165,7 @@ func TestOneUpdateAt0(t *testing.T) {
 	for _, algo := range algorithms {
 		t.Run(algo.Name, func(t *testing.T) {
 			store.Reset() // reset the read counters for the next test
-			timeElapsed := stopwatch.Measure(func() {
+			_ = stopwatch.Measure(func() {
 				value, err := algo.Lookup(context.Background(), now, lookup.NoClue, readFunc)
 				if err != nil {
 					t.Fatal(err)
@@ -188,7 +174,6 @@ func TestOneUpdateAt0(t *testing.T) {
 					t.Fatalf("Expected lookup to return the last written value: %v. Got %v", data, value)
 				}
 			})
-			printMetric("SIMPLE", store, timeElapsed)
 		})
 	}
 }
@@ -225,7 +210,7 @@ func TestBadHint(t *testing.T) {
 	for _, algo := range algorithms {
 		t.Run(algo.Name, func(t *testing.T) {
 			store.Reset()
-			timeElapsed := stopwatch.Measure(func() {
+			_ = stopwatch.Measure(func() {
 				value, err := algo.Lookup(context.Background(), now, badHint, readFunc)
 				if err != nil {
 					t.Fatal(err)
@@ -234,7 +219,6 @@ func TestBadHint(t *testing.T) {
 					t.Fatalf("Expected lookup to return the last written value: %v. Got %v", data, value)
 				}
 			})
-			printMetric("SIMPLE", store, timeElapsed)
 		})
 	}
 }
@@ -290,7 +274,7 @@ func TestBadHintNextToUpdate(t *testing.T) {
 		t.Run(algo.Name, func(t *testing.T) {
 			store.Reset() // reset read counters for next test
 
-			timeElapsed := stopwatch.Measure(func() {
+			_ = stopwatch.Measure(func() {
 				value, err := algo.Lookup(context.Background(), now, badHint, readFunc)
 				if err != nil {
 					t.Fatal(err)
@@ -299,7 +283,6 @@ func TestBadHintNextToUpdate(t *testing.T) {
 					t.Fatalf("Expected lookup to return the last written value: %v. Got %v", last, value)
 				}
 			})
-			printMetric("SIMPLE", store, timeElapsed)
 		})
 	}
 }
@@ -393,7 +376,6 @@ func TestLookupFail(t *testing.T) {
 				}
 			})
 
-			printMetric("SIMPLE", store, stopwatch.Elapsed())
 		})
 	}
 }
@@ -441,7 +423,6 @@ func TestHighFreqUpdates(t *testing.T) {
 					t.Fatalf("Expected lookup to return the last written value: %v. Got %v", lastData, value)
 				}
 			})
-			printMetric("SIMPLE", store, timeElapsedWithoutHint)
 
 			// reset the read count for the next test
 			store.Reset()
@@ -464,12 +445,11 @@ func TestHighFreqUpdates(t *testing.T) {
 			if timeElapsed > timeElapsedWithoutHint {
 				t.Fatalf("Expected lookup to complete faster than %s since we provided a hint. Took %s", timeElapsedWithoutHint, timeElapsed)
 			}
-			printMetric("WITH HINT", store, timeElapsed)
 
 			store.Reset() // reset read counters
 
 			// ### 3.3.- Test multiple lookups at different intervals
-			timeElapsed = stopwatch.Measure(func() {
+			_ = stopwatch.Measure(func() {
 				for i := uint64(0); i <= 10; i++ {
 					T := now - 1000 + i
 					value, err := algo.Lookup(context.Background(), T, lookup.NoClue, readFunc)
@@ -485,7 +465,6 @@ func TestHighFreqUpdates(t *testing.T) {
 					}
 				}
 			})
-			printMetric("MULTIPLE", store, timeElapsed)
 		})
 	}
 }
@@ -536,7 +515,6 @@ func TestSparseUpdates(t *testing.T) {
 					t.Fatalf("Expected lookup to return the last written value: %v. Got %v", lastData, value)
 				}
 			})
-			printMetric("SIMPLE", store, timeElapsedWithoutHint)
 
 			// reset the read count for the next test
 			store.Reset()
@@ -556,8 +534,6 @@ func TestSparseUpdates(t *testing.T) {
 			if timeElapsed > timeElapsedWithoutHint {
 				t.Fatalf("Expected lookup to complete faster than %s since we provided a hint. Took %s", timeElapsedWithoutHint, timeElapsed)
 			}
-
-			printMetric("WITH HINT", store, stopwatch.Elapsed())
 
 		})
 	}
@@ -616,26 +592,4 @@ func TestGetNextLevel(t *testing.T) {
 		}
 	}
 
-}
-
-// CookGetNextLevelTests is used to generate a deterministic
-// set of cases for TestGetNextLevel and thus "freeze" its current behavior
-func CookGetNextLevelTests(t *testing.T) {
-	st := ""
-	var last lookup.Epoch
-	last.Time = 1000000000
-	var now uint64
-	var expected uint8
-	for i := 0; i < 100; i++ {
-		last.Time += uint64(rand.Intn(1<<26)) - (1 << 25)
-		last.Level = uint8(rand.Intn(25))
-		v := last.Level + uint8(rand.Intn(lookup.HighestLevel))
-		if v > lookup.HighestLevel {
-			v = 0
-		}
-		now = last.Time + uint64(rand.Intn(1<<v+1)) - (1 << v)
-		expected = lookup.GetNextLevel(last, now)
-		st = fmt.Sprintf("%s,testG{e:lookup.Epoch{Time:%d, Level:%d}, n:%d, x:%d}", st, last.Time, last.Level, now, expected)
-	}
-	fmt.Println(st)
 }
