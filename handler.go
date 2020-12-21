@@ -21,21 +21,18 @@ package feed
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"sync"
 	"sync/atomic"
 
-	"github.com/ethersphere/swarm/chunk"
-	"github.com/ethersphere/swarm/log"
-	"github.com/ethersphere/swarm/storage"
-	"github.com/ethersphere/swarm/storage/feed/lookup"
+	"github.com/ethersphere/feeds/lookup"
+	"golang.org/x/crypto/sha3"
 )
 
 type Handler struct {
-	chunkStore *storage.NetStore
-	HashSize   int
-	cache      map[uint64]*cacheEntry
-	cacheLock  sync.RWMutex
+	loadsaver LoadSaver
+	HashSize  int
+	cache     map[uint64]*cacheEntry
+	cacheLock sync.RWMutex
 }
 
 // HandlerParams pass parameters to the Handler constructor NewHandler
@@ -50,7 +47,7 @@ var hashPool sync.Pool
 func init() {
 	hashPool = sync.Pool{
 		New: func() interface{} {
-			return storage.MakeHashFunc(feedsHashAlgorithm)()
+			return sha3.NewLegacyKeccak256()
 		},
 	}
 }
@@ -61,27 +58,18 @@ func NewHandler(params *HandlerParams) *Handler {
 		cache: make(map[uint64]*cacheEntry),
 	}
 
-	for i := 0; i < hasherCount; i++ {
-		hashfunc := storage.MakeHashFunc(feedsHashAlgorithm)()
-		if fh.HashSize == 0 {
-			fh.HashSize = hashfunc.Size()
-		}
-		hashPool.Put(hashfunc)
-	}
-
 	return fh
 }
 
-// SetStore sets the store backend for the Swarm feeds API
-func (h *Handler) SetStore(store *storage.NetStore) {
-	h.chunkStore = store
+func (h *Handler) SetLoadSaver(ls LoadSaver) {
+	h.loadsaver = ls
 }
 
 // Validate is a chunk validation method
 // If it looks like a feed update, the chunk address is checked against the userAddr of the update's signature
 // It implements the storage.ChunkValidator interface
-func (h *Handler) Validate(chunk storage.Chunk) bool {
-	if len(chunk.Data()) < minimumSignedUpdateLength {
+func (h *Handler) Validate(addr, data []byte) bool {
+	if len(data) < minimumSignedUpdateLength {
 		return false
 	}
 
@@ -91,8 +79,8 @@ func (h *Handler) Validate(chunk storage.Chunk) bool {
 
 	// First, deserialize the chunk
 	var r Request
-	if err := r.fromChunk(chunk); err != nil {
-		log.Debug("Invalid feed update chunk", "addr", chunk.Address(), "err", err)
+	if err := r.fromChunk(addr, data); err != nil {
+		//log.Debug("Invalid feed update chunk", "addr", chunk.Address(), "err", err)
 		return false
 	}
 
@@ -100,7 +88,7 @@ func (h *Handler) Validate(chunk storage.Chunk) bool {
 	// If it fails, it means either the signature is not valid, data is corrupted
 	// or someone is trying to update someone else's feed.
 	if err := r.Verify(); err != nil {
-		log.Debug("Invalid feed update signature", "err", err)
+		//log.Debug("Invalid feed update signature", "err", err)
 		return false
 	}
 
@@ -108,7 +96,7 @@ func (h *Handler) Validate(chunk storage.Chunk) bool {
 }
 
 // GetContent retrieves the data payload of the last synced update of the feed
-func (h *Handler) GetContent(feed *Feed) (storage.Address, []byte, error) {
+func (h *Handler) GetContent(feed *Feed) ([]byte, []byte, error) {
 	if feed == nil {
 		return nil, nil, NewError(ErrInvalidValue, "feed is nil")
 	}
@@ -173,7 +161,7 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 	}
 
 	// we can't look for anything without a store
-	if h.chunkStore == nil {
+	if h.loadsaver == nil {
 		return nil, NewError(ErrInit, "Call Handler.SetStore() before performing lookups")
 	}
 
@@ -190,17 +178,13 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 		ctx, cancel := context.WithTimeout(ctx, defaultRetrieveTimeout)
 		defer cancel()
 
-		r := storage.NewRequest(id.Addr())
-		ch, err := h.chunkStore.Get(ctx, chunk.ModeGetLookup, r)
+		data, err := h.loadsaver.Load(ctx, id.Addr())
 		if err != nil {
-			if err == context.DeadlineExceeded || err == storage.ErrNoSuitablePeer { // chunk not found
-				return nil, nil
-			}
-			return nil, err
+			return nil, nil
 		}
 
 		var request Request
-		if err := request.fromChunk(ch); err != nil {
+		if err := request.fromChunk(id.Addr(), data); err != nil {
 			return nil, nil
 		}
 		if request.Time <= timeLimit {
@@ -212,7 +196,7 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 		return nil, err
 	}
 
-	log.Info(fmt.Sprintf("Feed lookup finished in %d lookups", readCount))
+	//log.Info(fmt.Sprintf("Feed lookup finished in %d lookups", readCount))
 
 	request, _ := requestPtr.(*Request)
 	if request == nil {
@@ -226,7 +210,7 @@ func (h *Handler) Lookup(ctx context.Context, query *Query) (*cacheEntry, error)
 func (h *Handler) updateCache(request *Request) (*cacheEntry, error) {
 
 	updateAddr := request.Addr()
-	log.Trace("feed cache update", "topic", request.Topic.Hex(), "updateaddr", updateAddr, "epoch time", request.Epoch.Time, "epoch level", request.Epoch.Level)
+	//log.Trace("feed cache update", "topic", request.Topic.Hex(), "updateaddr", updateAddr, "epoch time", request.Epoch.Time, "epoch level", request.Epoch.Level)
 
 	entry := h.get(&request.Feed)
 	if entry == nil {
@@ -247,10 +231,10 @@ func (h *Handler) updateCache(request *Request) (*cacheEntry, error) {
 // An error will be returned if the total length of the chunk payload will exceed this limit.
 // Update can only check if the caller is trying to overwrite the very last known version, otherwise it just puts the update
 // on the network.
-func (h *Handler) Update(ctx context.Context, r *Request) (updateAddr storage.Address, err error) {
+func (h *Handler) Update(ctx context.Context, r *Request) (updateAddr []byte, err error) {
 
 	// we can't update anything without a store
-	if h.chunkStore == nil {
+	if h.loadsaver == nil {
 		return nil, NewError(ErrInit, "Call Handler.SetStore() before updating")
 	}
 
@@ -259,13 +243,12 @@ func (h *Handler) Update(ctx context.Context, r *Request) (updateAddr storage.Ad
 		return nil, NewError(ErrInvalidValue, "A former update in this epoch is already known to exist")
 	}
 
-	ch, err := r.toChunk() // Serialize the update into a chunk. Fails if data is too big
+	addr, data, err := r.toChunk() // Serialize the update into a chunk. Fails if data is too big
 	if err != nil {
 		return nil, err
 	}
 
-	// send the chunk
-	_, err = h.chunkStore.Put(ctx, chunk.ModePutUpload, ch)
+	err = h.loadsaver.Save(ctx, addr, data)
 	if err != nil {
 		return nil, err
 	}

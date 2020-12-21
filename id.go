@@ -21,10 +21,7 @@ import (
 	"hash"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethersphere/swarm/storage/feed/lookup"
-
-	"github.com/ethersphere/swarm/storage"
+	"github.com/ethersphere/feeds/lookup"
 )
 
 // ID uniquely identifies an update on the network.
@@ -39,10 +36,10 @@ type ID struct {
 const idLength = feedLength + lookup.EpochLength
 
 // Addr calculates the feed update chunk address corresponding to this ID
-func (u *ID) Addr() (updateAddr storage.Address) {
+func (u *ID) Addr() []byte {
 	serializedData := make([]byte, idLength)
 	var cursor int
-	u.Feed.binaryPut(serializedData[cursor : cursor+feedLength])
+	_ = u.Feed.binaryPut(serializedData[cursor : cursor+feedLength])
 	cursor += feedLength
 
 	eid := u.Epoch.ID()
@@ -51,7 +48,7 @@ func (u *ID) Addr() (updateAddr storage.Address) {
 	hasher := hashPool.Get().(hash.Hash)
 	defer hashPool.Put(hasher)
 	hasher.Reset()
-	hasher.Write(serializedData)
+	_, _ = hasher.Write(serializedData)
 	return hasher.Sum(nil)
 }
 
@@ -71,7 +68,6 @@ func (u *ID) binaryPut(serializedData []byte) error {
 		return err
 	}
 	copy(serializedData[cursor:cursor+lookup.EpochLength], epochBytes[:])
-	cursor += lookup.EpochLength
 
 	return nil
 }
@@ -93,12 +89,7 @@ func (u *ID) binaryGet(serializedData []byte) error {
 	}
 	cursor += feedLength
 
-	if err := u.Epoch.UnmarshalBinary(serializedData[cursor : cursor+lookup.EpochLength]); err != nil {
-		return err
-	}
-	cursor += lookup.EpochLength
-
-	return nil
+	return u.Epoch.UnmarshalBinary(serializedData[cursor : cursor+lookup.EpochLength])
 }
 
 // FromValues deserializes this instance from a string key-value store
@@ -108,7 +99,7 @@ func (u *ID) FromValues(values Values) error {
 	u.Epoch.Level = uint8(level)
 	u.Epoch.Time, _ = strconv.ParseUint(values.Get("time"), 10, 64)
 
-	if u.Feed.User == (common.Address{}) {
+	if u.Feed.User == (Address{}) {
 		return u.Feed.FromValues(values)
 	}
 	return nil

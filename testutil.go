@@ -16,62 +16,17 @@
 
 package feed
 
-import (
-	"context"
-	"errors"
-	"path/filepath"
-
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethersphere/swarm/chunk"
-	"github.com/ethersphere/swarm/network"
-	"github.com/ethersphere/swarm/storage"
-	"github.com/ethersphere/swarm/storage/localstore"
-)
-
-const (
-	testDbDirName = "feeds"
-)
-
 type TestHandler struct {
 	*Handler
 }
 
-func (t *TestHandler) Close() {
-	t.chunkStore.Close()
-}
-
 // NewTestHandler creates Handler object to be used for testing purposes.
 func NewTestHandler(datadir string, params *HandlerParams) (*TestHandler, error) {
-	path := filepath.Join(datadir, testDbDirName)
 	fh := NewHandler(params)
-
-	db, err := localstore.New(filepath.Join(path, "chunks"), make([]byte, 32), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	localStore := chunk.NewValidatorStore(db, storage.NewContentAddressValidator(storage.MakeHashFunc(feedsHashAlgorithm)), fh)
-
-	netStore := storage.NewNetStore(localStore, network.NewBzzAddr(make([]byte, 32), nil))
-	netStore.RemoteGet = func(ctx context.Context, req *storage.Request, localID enode.ID) (*enode.ID, func(), error) {
-		return nil, func() {}, errors.New("not found")
-	}
-	fh.SetStore(netStore)
 	return &TestHandler{fh}, nil
 }
 
-func NewTestHandlerWithStore(datadir string, db chunk.Store, params *HandlerParams) (*TestHandler, error) {
-	fh := NewHandler(params)
-	return newTestHandlerWithStore(fh, datadir, db, params)
-}
+func NewTestHandlerWithStore(datadir string, params *HandlerParams) (*TestHandler, error) {
 
-func newTestHandlerWithStore(fh *Handler, datadir string, db chunk.Store, params *HandlerParams) (*TestHandler, error) {
-	localStore := chunk.NewValidatorStore(db, storage.NewContentAddressValidator(storage.MakeHashFunc(feedsHashAlgorithm)), fh)
-
-	netStore := storage.NewNetStore(localStore, network.NewBzzAddr(make([]byte, 32), nil))
-	netStore.RemoteGet = func(ctx context.Context, req *storage.Request, localID enode.ID) (*enode.ID, func(), error) {
-		return nil, func() {}, errors.New("not found")
-	}
-	fh.SetStore(netStore)
-	return &TestHandler{fh}, nil
+	return &TestHandler{}, nil
 }

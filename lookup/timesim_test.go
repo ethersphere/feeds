@@ -44,10 +44,10 @@ func (s *Stopwatch) Reset() {
 // Tick advances simulated time by the stopwatch's resolution and triggers
 // all due timers
 func (s *Stopwatch) Tick() {
-	s.t = s.t.Add(s.resolution)
-
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	s.t = s.t.Add(s.resolution)
 
 	for id, timer := range s.timers {
 		if s.t.After(timer.deadline) || s.t.Equal(timer.deadline) {
@@ -84,6 +84,8 @@ func (s *Stopwatch) TimeAfter() func(d time.Duration) <-chan time.Time {
 
 // Elapsed returns the time that has passed in the simulation
 func (s *Stopwatch) Elapsed() time.Duration {
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	return s.t.Sub(time.Time{})
 }
 

@@ -20,13 +20,9 @@ import (
 	"bytes"
 	"context"
 	"time"
-
-	"github.com/ethersphere/swarm/storage"
 )
 
 const (
-	hasherCount            = 8
-	feedsHashAlgorithm     = storage.SHA3Hash
 	defaultRetrieveTimeout = 1000 * time.Millisecond
 )
 
@@ -34,7 +30,7 @@ const (
 type cacheEntry struct {
 	Update
 	*bytes.Reader
-	lastKey storage.Address
+	lastKey []byte
 }
 
 // implements storage.LazySectionReader

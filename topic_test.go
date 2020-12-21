@@ -1,23 +1,26 @@
 package feed
 
 import (
+	"encoding/hex"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 func TestTopic(t *testing.T) {
-	related, _ := hexutil.Decode("0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	related, _ := hex.DecodeString("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	topicName := "test-topic"
 	topic, _ := NewTopic(topicName, related)
 	hex := topic.Hex()
-	expectedHex := "0xdfa89c750e3108f9c2aeef0123456789abcdef0123456789abcdef0123456789"
+	expectedHex := "dfa89c750e3108f9c2aeef0123456789abcdef0123456789abcdef0123456789"
 	if hex != expectedHex {
 		t.Fatalf("Expected %s, got %s", expectedHex, hex)
 	}
 
 	var topic2 Topic
-	topic2.FromHex(hex)
+	err := topic2.FromHex(hex)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if topic2 != topic {
 		t.Fatal("Expected recovered topic to be equal to original one")
 	}
@@ -30,7 +33,7 @@ func TestTopic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedJSON := `"0xdfa89c750e3108f9c2aeef0123456789abcdef0123456789abcdef0123456789"`
+	expectedJSON := `"dfa89c750e3108f9c2aeef0123456789abcdef0123456789abcdef0123456789"`
 	equal, err := areEqualJSON(expectedJSON, string(bytes))
 	if err != nil {
 		t.Fatal(err)
