@@ -2,6 +2,7 @@ package lookup
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -36,7 +37,7 @@ func LongEarthAlgorithm(ctx context.Context, now uint64, hint Epoch, read ReadFu
 
 	errc := make(chan struct{}) // errc will help as an error shortcut signal
 	var gerr error              // in case of error, this variable will be set
-
+	var mtx = new(sync.Mutex)
 	var step stepFunc // For efficiency, the algorithm step is defined as a closure
 	step = func(ctxS context.Context, t uint64, last Epoch) interface{} {
 		stepID := atomic.AddInt32(&stepCounter, 1) // give an ID to this call instance
@@ -52,8 +53,12 @@ func LongEarthAlgorithm(ctx context.Context, now uint64, hint Epoch, read ReadFu
 
 		// define the lookAhead function, which will follow the path as if R was successful
 		lookAhead := func() {
-			valueA = step(ctxA, t, epoch) // launch the next step, recursively.
-			if valueA != nil {            // if this path is successful, we don't need R or B.
+
+			v := step(ctxA, t, epoch) // launch the next step, recursively.
+			mtx.Lock()
+			valueA = v
+			mtx.Unlock()
+			if valueA != nil { // if this path is successful, we don't need R or B.
 				cancelB()
 				cancelR()
 			}
@@ -68,14 +73,20 @@ func LongEarthAlgorithm(ctx context.Context, now uint64, hint Epoch, read ReadFu
 			if base == 0 {
 				return
 			}
-			valueB = step(ctxB, base-1, last)
+			vb := step(ctxB, base-1, last)
+			mtx.Lock()
+			valueB = vb
+			mtx.Unlock()
 		}
 
 		go func() { //goroutine to read the current epoch (R)
 			defer cancelR()
 			var err error
-			valueR, err = read(ctxR, epoch, now) // read this epoch
-			if valueR == nil {                   // if unsuccessful, cancel lookahead, otherwise cancel lookback.
+			vr, err := read(ctxR, epoch, now) // read this epoch
+			mtx.Lock()
+			valueR = vr
+			mtx.Unlock()
+			if valueR == nil { // if unsuccessful, cancel lookahead, otherwise cancel lookback.
 				cancelA()
 			} else {
 				cancelB()
@@ -101,7 +112,10 @@ func LongEarthAlgorithm(ctx context.Context, now uint64, hint Epoch, read ReadFu
 			case <-TimeAfter(LongEarthLookaheadDelay):
 				lookAhead()
 			case <-ctxR.Done():
-				if valueR != nil {
+				mtx.Lock()
+				vr := valueR
+				mtx.Unlock()
+				if vr != nil {
 					lookAhead() // only look ahead if R was successful
 				}
 			case <-ctxA.Done():
@@ -116,7 +130,10 @@ func LongEarthAlgorithm(ctx context.Context, now uint64, hint Epoch, read ReadFu
 			case <-TimeAfter(LongEarthLookbackDelay):
 				lookBack()
 			case <-ctxR.Done():
-				if valueR == nil {
+				mtx.Lock()
+				vr := valueR
+				mtx.Unlock()
+				if vr != nil {
 					lookBack() // only look back in case R failed
 				}
 			case <-ctxB.Done():
@@ -124,19 +141,27 @@ func LongEarthAlgorithm(ctx context.Context, now uint64, hint Epoch, read ReadFu
 		}()
 
 		<-ctxA.Done()
-		if valueA != nil {
-			trace(stepID, "Returning valueA=%v", valueA)
-			return valueA
+		mtx.Lock()
+		va := valueA
+		mtx.Unlock()
+		if va != nil {
+			trace(stepID, "Returning valueA=%v", va)
+			return va
 		}
-
 		<-ctxR.Done()
-		if valueR != nil {
-			trace(stepID, "Returning valueR=%v", valueR)
-			return valueR
+		mtx.Lock()
+		vr := valueR
+		mtx.Unlock()
+		if vr != nil {
+			trace(stepID, "Returning valueR=%v", vr)
+			return vr
 		}
 		<-ctxB.Done()
-		trace(stepID, "Returning valueB=%v", valueB)
-		return valueB
+		mtx.Lock()
+		vb := valueB
+		mtx.Unlock()
+		trace(stepID, "Returning valueB=%v", vb)
+		return vb
 	}
 
 	var value interface{}

@@ -84,6 +84,8 @@ func (s *Stopwatch) TimeAfter() func(d time.Duration) <-chan time.Time {
 
 // Elapsed returns the time that has passed in the simulation
 func (s *Stopwatch) Elapsed() time.Duration {
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	return s.t.Sub(time.Time{})
 }
 

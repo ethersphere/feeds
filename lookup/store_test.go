@@ -57,6 +57,8 @@ func NewStore(config *StoreConfig) *Store {
 
 // Reset reset performance counters and clears the cache
 func (s *Store) Reset() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	s.cache = make(DataMap)
 }
 
