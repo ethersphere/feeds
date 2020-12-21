@@ -87,9 +87,13 @@ func TestFeedsHandler(t *testing.T) {
 	defer cancel()
 
 	topic, _ := NewTopic("Mess with Swarm feeds code and see what ghost catches you", nil)
+	a, err := signer.EthereumAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
 	fd := Feed{
 		Topic: topic,
-		User:  signer.Address(),
+		User:  a,
 	}
 
 	// data for updates:
@@ -268,9 +272,13 @@ func TestSparseUpdates(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	topic, _ := NewTopic("Very slow updates", nil)
+	a, err := signer.EthereumAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
 	fd := Feed{
 		Topic: topic,
-		User:  signer.Address(),
+		User:  a,
 	}
 
 	// publish one update every 5 years since Unix 0 until today
@@ -348,9 +356,13 @@ func TestValidator(t *testing.T) {
 
 	// create new feed
 	topic, _ := NewTopic(subtopicName, nil)
+	a, err := signer.EthereumAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
 	fd := Feed{
 		Topic: topic,
-		User:  signer.Address(),
+		User:  a,
 	}
 	mr := NewFirstRequest(fd.Topic)
 

@@ -21,9 +21,13 @@ import (
 
 func getTestFeed() *Feed {
 	topic, _ := NewTopic("world news report, every hour", nil)
+	a, err := newCharlieSigner().EthereumAddress()
+	if err != nil {
+		panic(err)
+	}
 	return &Feed{
 		Topic: topic,
-		User:  newCharlieSigner().Address(),
+		User:  a,
 	}
 }
 

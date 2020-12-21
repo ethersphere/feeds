@@ -18,9 +18,7 @@ package feed
 
 import (
 	"crypto/ecdsa"
-	"encoding/hex"
 	"errors"
-	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -35,8 +33,8 @@ type Signature [signatureLength]byte
 
 // Signer signs feed update payloads
 type Signer interface {
-	Sign(Hash) (Signature, error)
-	Address() Address
+	Sign([]byte) ([]byte, error)
+	EthereumAddress() (Address, error)
 }
 
 // GenericSigner implements the Signer interface
@@ -60,30 +58,14 @@ func NewGenericSigner(privKey *ecdsa.PrivateKey) *GenericSigner {
 	return s
 }
 
-//// addEthereumPrefix adds the ethereum prefix to the data.
-//func addEthereumPrefix(data []byte) []byte {
-//return []byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(data), data))
-//}
-
-//// hashWithEthereumPrefix returns the hash that should be signed for the given data.
-//func hashWithEthereumPrefix(data []byte) ([]byte, error) {
-//return LegacyKeccak256(addEthereumPrefix(data))
-//}
-
 // Sign signs the supplied data
 // It wraps the ethereum crypto.Sign() method
-func (s *GenericSigner) Sign(data Hash) (signature Signature, err error) {
-	//hash, err := hashWithEthereumPrefix(data[:])
-	//if err != nil {
-	//return
-	//}
-
+func (s *GenericSigner) Sign(data []byte) (signature []byte, err error) {
 	sig, err := s.sign(data[:], true)
 	if err != nil {
 		return
 	}
-	copy(signature[:], sig)
-	return
+	return sig, nil
 }
 
 // sign the provided hash and convert it to the ethereum (r,s,v) format.
@@ -94,22 +76,20 @@ func (s *GenericSigner) sign(sighash []byte, isCompressedKey bool) ([]byte, erro
 	}
 
 	// Convert to Ethereum signature format with 'recovery id' v at the end.
-	fmt.Println(hex.EncodeToString(signature))
 	v := signature[0]
 	copy(signature, signature[1:])
 	signature[64] = v
-	fmt.Println(hex.EncodeToString(signature))
 
 	return signature, nil
 }
 
 // Address returns the public key of the signer's private key
-func (s *GenericSigner) Address() Address {
-	return s.address
+func (s *GenericSigner) EthereumAddress() (Address, error) {
+	return s.address, nil
 }
 
 // getUserAddr extracts the address of the feed update signer
-func getUserAddr(digest Hash, signature Signature) (Address, error) {
+func getUserAddr(digest Hash, signature []byte) (Address, error) {
 	pub, err := Recover(signature[:], digest[:])
 	if err != nil {
 		return Address{}, err
