@@ -104,11 +104,12 @@ func (r *Request) Verify() (err error) {
 // Sign executes the signature to validate the update message
 func (r *Request) Sign(signer Signer) error {
 	var err error
-	r.Feed.User, err = signer.EthereumAddress()
+	ethaddr, err := signer.EthereumAddress() // this is a kludge needed since the bee interfaces are polluted with go-ethereum types
 	if err != nil {
 		return err
 	}
 
+	copy(r.Feed.User[:], ethaddr.Bytes())
 	r.binaryData = nil           //invalidate serialized data
 	digest, err := r.GetDigest() // computes digest and serializes into .binaryData
 	if err != nil {

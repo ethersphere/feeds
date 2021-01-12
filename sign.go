@@ -21,6 +21,7 @@ import (
 	"errors"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const signatureLength = 65
@@ -34,14 +35,14 @@ type Signature [signatureLength]byte
 // Signer signs feed update payloads
 type Signer interface {
 	Sign([]byte) ([]byte, error)
-	EthereumAddress() (Address, error)
+	EthereumAddress() (common.Address, error)
 }
 
 // GenericSigner implements the Signer interface
 // It is the vanilla signer that probably should be used in most cases
 type GenericSigner struct {
 	PrivKey *ecdsa.PrivateKey
-	address Address
+	address common.Address
 }
 
 // NewGenericSigner builds a signer that will sign everything with the provided private key
@@ -53,8 +54,8 @@ func NewGenericSigner(privKey *ecdsa.PrivateKey) *GenericSigner {
 
 	s := &GenericSigner{
 		PrivKey: privKey,
+		address: common.BytesToAddress(addr),
 	}
-	copy(s.address[:], addr)
 	return s
 }
 
@@ -84,7 +85,7 @@ func (s *GenericSigner) sign(sighash []byte, isCompressedKey bool) ([]byte, erro
 }
 
 // Address returns the public key of the signer's private key
-func (s *GenericSigner) EthereumAddress() (Address, error) {
+func (s *GenericSigner) EthereumAddress() (common.Address, error) {
 	return s.address, nil
 }
 

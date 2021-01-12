@@ -25,10 +25,12 @@ func getTestFeed() *Feed {
 	if err != nil {
 		panic(err)
 	}
-	return &Feed{
+
+	f := &Feed{
 		Topic: topic,
-		User:  a,
 	}
+	copy(f.User[:], a.Bytes())
+	return f
 }
 
 func TestFeedSerializerDeserializer(t *testing.T) {

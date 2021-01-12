@@ -54,10 +54,11 @@ func TestEncodingDecodingUpdateRequests(t *testing.T) {
 	// Create a feed to our good guy Charlie's name
 	topic, _ := NewTopic("a good topic name", nil)
 	firstRequest := NewFirstRequest(topic)
-	firstRequest.User, err = charlie.EthereumAddress()
+	addr, err := charlie.EthereumAddress()
 	if err != nil {
 		t.Fatal(err)
 	}
+	copy(firstRequest.User[:], addr.Bytes())
 
 	// We now encode the create message to simulate we send it over the wire
 	messageRawData, err := firstRequest.MarshalJSON()
@@ -268,8 +269,8 @@ func TestReverse(t *testing.T) {
 	}
 	fd := Feed{
 		Topic: topic,
-		User:  a,
 	}
+	copy(fd.User[:], a.Bytes())
 
 	data := []byte("Donde una puerta se cierra, otra se abre")
 

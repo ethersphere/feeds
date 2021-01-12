@@ -93,8 +93,8 @@ func TestFeedsHandler(t *testing.T) {
 	}
 	fd := Feed{
 		Topic: topic,
-		User:  a,
 	}
+	copy(fd.User[:], a.Bytes())
 
 	// data for updates:
 	updates := []string{
@@ -278,8 +278,8 @@ func TestSparseUpdates(t *testing.T) {
 	}
 	fd := Feed{
 		Topic: topic,
-		User:  a,
 	}
+	copy(fd.User[:], a.Bytes())
 
 	// publish one update every 5 years since Unix 0 until today
 	today := uint64(1533799046)
@@ -362,8 +362,8 @@ func TestValidator(t *testing.T) {
 	}
 	fd := Feed{
 		Topic: topic,
-		User:  a,
 	}
+	copy(fd.User[:], a.Bytes())
 	mr := NewFirstRequest(fd.Topic)
 
 	// chunk with address
