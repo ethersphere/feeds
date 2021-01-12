@@ -21,10 +21,16 @@ import (
 
 func getTestFeed() *Feed {
 	topic, _ := NewTopic("world news report, every hour", nil)
-	return &Feed{
-		Topic: topic,
-		User:  newCharlieSigner().Address(),
+	a, err := newCharlieSigner().EthereumAddress()
+	if err != nil {
+		panic(err)
 	}
+
+	f := &Feed{
+		Topic: topic,
+	}
+	copy(f.User[:], a.Bytes())
+	return f
 }
 
 func TestFeedSerializerDeserializer(t *testing.T) {

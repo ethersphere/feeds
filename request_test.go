@@ -47,14 +47,18 @@ func areEqualJSON(s1, s2 string) (bool, error) {
 // TestEncodingDecodingUpdateRequests ensures that requests are serialized properly
 // while also checking cryptographically that only the owner of a feed can update it.
 func TestEncodingDecodingUpdateRequests(t *testing.T) {
+	var err error
 
 	charlie := newCharlieSigner() //Charlie
 	bob := newBobSigner()         //Bob
-
 	// Create a feed to our good guy Charlie's name
 	topic, _ := NewTopic("a good topic name", nil)
 	firstRequest := NewFirstRequest(topic)
-	firstRequest.User = charlie.Address()
+	addr, err := charlie.EthereumAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	copy(firstRequest.User[:], addr.Bytes())
 
 	// We now encode the create message to simulate we send it over the wire
 	messageRawData, err := firstRequest.MarshalJSON()
@@ -259,10 +263,14 @@ func TestReverse(t *testing.T) {
 	defer teardownTest()
 
 	topic, _ := NewTopic("Cervantes quotes", nil)
+	a, err := signer.EthereumAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
 	fd := Feed{
 		Topic: topic,
-		User:  signer.Address(),
 	}
+	copy(fd.User[:], a.Bytes())
 
 	data := []byte("Donde una puerta se cierra, otra se abre")
 
@@ -292,7 +300,7 @@ func TestReverse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recoveredAddr, err := getUserAddr(checkdigest, *checkUpdate.Signature)
+	recoveredAddr, err := getUserAddr(checkdigest, checkUpdate.Signature[:])
 	if err != nil {
 		t.Fatalf("Retrieve address from signature fail: %v", err)
 	}

@@ -86,7 +86,7 @@ func (r *Request) Verify() (err error) {
 	}
 
 	// get the address of the signer (which also checks that it's a valid signature)
-	r.Feed.User, err = getUserAddr(digest, *r.Signature)
+	r.Feed.User, err = getUserAddr(digest, r.Signature[:])
 	if err != nil {
 		return err
 	}
@@ -103,14 +103,20 @@ func (r *Request) Verify() (err error) {
 
 // Sign executes the signature to validate the update message
 func (r *Request) Sign(signer Signer) error {
-	r.Feed.User = signer.Address()
+	var err error
+	ethaddr, err := signer.EthereumAddress() // this is a kludge needed since the bee interfaces are polluted with go-ethereum types
+	if err != nil {
+		return err
+	}
+
+	copy(r.Feed.User[:], ethaddr.Bytes())
 	r.binaryData = nil           //invalidate serialized data
 	digest, err := r.GetDigest() // computes digest and serializes into .binaryData
 	if err != nil {
 		return err
 	}
 
-	signature, err := signer.Sign(digest)
+	signature, err := signer.Sign(digest[:])
 	if err != nil {
 		return err
 	}
@@ -122,11 +128,12 @@ func (r *Request) Sign(signer Signer) error {
 		return NewError(ErrInvalidSignature, "Error verifying signature")
 	}
 
-	if userAddr != signer.Address() { // sanity check to make sure the Signer is declaring the same address used to sign!
+	if !bytes.Equal(userAddr[:], r.Feed.User[:]) { // sanity check to make sure the Signer is declaring the same address used to sign!
 		return NewError(ErrInvalidSignature, "Signer address does not match update user address")
 	}
 
-	r.Signature = &signature
+	r.Signature = &Signature{}
+	copy(r.Signature[:], signature)
 	r.idAddr = r.Addr()
 	return nil
 }
