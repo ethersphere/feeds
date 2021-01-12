@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethersphere/feeds/lookup"
-	"github.com/ethersphere/swarm/chunk"
 	"github.com/ethersphere/swarm/storage"
 	"k8s.io/helm/log"
 )
@@ -41,14 +40,15 @@ func Lookup(ctx context.Context, ls LoadSaver, user common.Address, topic []byte
 
 		r := storage.NewRequest(id.Addr())
 
-		ls.Load(ctx, id.Addr())
-		ch, err := h.chunkStore.Get(ctx, chunk.ModeGetLookup, r)
-		if err != nil {
-			if err == context.DeadlineExceeded || err == storage.ErrNoSuitablePeer { // chunk not found
-				return nil, nil
-			}
-			return nil, err
-		}
+		b, err := ls.Load(ctx, id.Addr())
+
+		//ch, err := h.chunkStore.Get(ctx, chunk.ModeGetLookup, r)
+		//if err != nil {
+		//if err == context.DeadlineExceeded || err == storage.ErrNoSuitablePeer { // chunk not found
+		//return nil, nil
+		//}
+		//return nil, err
+		//}
 
 		var request Request
 		if err := request.fromChunk(ch); err != nil {
